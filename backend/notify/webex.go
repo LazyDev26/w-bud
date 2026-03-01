@@ -152,3 +152,8 @@ func (w *WebexNotifier) NotifyExecutionDone(runID, storyID string, changedFiles 
 func (w *WebexNotifier) NotifyExecutionFailed(runID, storyID, errMsg string) {
 	w.Notify(fmt.Sprintf("❌ **Execution Failed**\n- **Run**: `%s`\n- **Story**: %s\n- **Error**: %s", runID, storyID, errMsg))
 }
+
+// NotifyRunAborted notifies that a run was manually aborted.
+func (w *WebexNotifier) NotifyRunAborted(runID, storyID string) {
+	w.Notify(fmt.Sprintf("🛑 **Run Aborted**\n- **Run**: `%s`\n- **Story**: %s", runID, storyID))
+}

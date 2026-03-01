@@ -13,6 +13,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/w-bud/backend/models"
+	"github.com/w-bud/backend/notify"
 	"github.com/w-bud/backend/pipeline"
 	"github.com/w-bud/backend/storage"
 )
@@ -175,6 +176,13 @@ func (h *RunHandler) Abort(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	// Send Webex notification
+	if cfg, err := h.Store.GetConfig(); err == nil {
+		notifier := &notify.WebexNotifier{Config: cfg.Webex}
+		notifier.NotifyRunAborted(runID, run.StoryID)
+	}
+
 	writeJSON(w, run)
 }
 

@@ -2,7 +2,7 @@
 
 A local-first, AI-powered developer orchestrator that connects your JIRA sprint board, local git repositories, and CLI-based coding agents into one automated plan-and-execute workflow.
 
-**Built to give you a headstart.** Instead of building your own AI-assisted dev pipeline from scratch, w-bud provides the wiring — JIRA integration, agent orchestration, worktree isolation, live streaming, and a ready-to-use dashboard. Fork it, customize it, and make it yours.
+**Built to give you a headstart on your day.** Kick off runs before you start coding — by the time you sit down, there's already a plan reviewed and code waiting in a branch. w-bud provides the wiring — JIRA integration, agent orchestration, worktree isolation, live streaming, and a ready-to-use dashboard. Fork it, customize it, and make it yours.
 
 ## Who Is This For?
 

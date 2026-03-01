@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/w-bud/backend/models"
 )
@@ -53,10 +54,78 @@ func (w *WebexNotifier) NotifyPlanningStarted(runID, storyID, storySummary, agen
 	w.Notify(fmt.Sprintf("🚀 **Planning Started**\n- **Run**: `%s`\n- **Story**: %s — %s\n- **Agent**: %s", runID, storyID, storySummary, agent))
 }
 
-// NotifyPlanGenerated sends the generated plan to Webex as a standalone message.
-// This is always sent before any approval decision.
+// NotifyPlanGenerated sends the full plan to Webex. If the plan is large it is
+// split into multiple messages at markdown heading boundaries to stay within
+// the Webex message size limit (~7 KB). The original text is preserved as-is.
 func (w *WebexNotifier) NotifyPlanGenerated(runID, storyID, planMD string) {
-	w.Notify(fmt.Sprintf("📋 **Plan Generated**\n- **Run**: `%s`\n- **Story**: %s\n\n---\n%s", runID, storyID, planMD))
+	header := fmt.Sprintf("📋 **Plan Generated**\n- **Run**: `%s`\n- **Story**: %s\n\n---\n", runID, storyID)
+
+	chunks := splitAtHeadings(planMD, 6000)
+	if len(chunks) <= 1 {
+		w.Notify(header + planMD)
+		return
+	}
+
+	w.Notify(header + chunks[0])
+	for _, chunk := range chunks[1:] {
+		w.Notify(chunk)
+	}
+}
+
+// splitAtHeadings splits md into chunks no larger than maxBytes, breaking at
+// markdown heading lines (# or ##). The original text is sliced, not rebuilt,
+// so formatting is preserved exactly.
+func splitAtHeadings(md string, maxBytes int) []string {
+	if len(md) <= maxBytes {
+		return []string{md}
+	}
+
+	// Find byte offsets of each heading line
+	var offsets []int
+	pos := 0
+	for pos < len(md) {
+		nl := strings.Index(md[pos:], "\n")
+		var lineStart int
+		if pos == 0 {
+			lineStart = 0
+		} else {
+			lineStart = pos
+		}
+		line := ""
+		if nl == -1 {
+			line = md[pos:]
+			pos = len(md)
+		} else {
+			line = md[pos : pos+nl]
+			pos = pos + nl + 1
+		}
+		if strings.HasPrefix(line, "# ") || strings.HasPrefix(line, "## ") {
+			offsets = append(offsets, lineStart)
+		}
+	}
+
+	// If no headings found, just return the whole thing
+	if len(offsets) == 0 {
+		return []string{md}
+	}
+
+	// Build chunks by grouping sections until maxBytes is exceeded
+	var chunks []string
+	start := 0
+	lastSplit := 0
+	for i, off := range offsets {
+		// Check if adding this section would exceed the limit
+		if i > 0 && off-start > maxBytes {
+			chunks = append(chunks, md[start:lastSplit])
+			start = lastSplit
+		}
+		lastSplit = off
+	}
+	// Remaining text
+	if start < len(md) {
+		chunks = append(chunks, md[start:])
+	}
+	return chunks
 }
 
 // NotifyPlanReady notifies that a plan is ready for review (awaiting manual approval).

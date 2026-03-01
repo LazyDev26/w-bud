@@ -44,7 +44,7 @@ func (a *CodexAgent) run(ctx context.Context, prompt string, workDir string, log
 	defer os.Remove(promptFile)
 
 	// Build args: codex exec --full-auto --json -C <dir> [-o <file>] <prompt>
-	args := []string{"exec", "--full-auto", "--json", "-C", workDir}
+	args := []string{"exec", "--full-auto", "--skip-git-repo-check", "--json", "-C", workDir}
 
 	var outputFile string
 	if captureOutput {

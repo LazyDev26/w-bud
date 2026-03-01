@@ -252,50 +252,28 @@ func (r *Runner) RunExecution(runID string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
 
-	// For multi-repo: run the agent per-repo sequentially with scoped prompts.
-	// For single-repo: use the original full prompt.
+	// Build a unified execution prompt that includes all worktree paths.
+	// The agent runs in a single session with access to all repos, enabling
+	// cross-repo awareness and self-correction.
+	prompt := BuildExecutionPrompt(stories, *run, repos, cfg.GlobalPrompts)
+	// Use the common parent of all worktrees as the working directory so the
+	// agent's sandbox (e.g. Codex --full-auto) covers all repo worktrees.
+	// Worktrees live at <workspacesRoot>/<runID>/<repoName>, so the parent is
+	// the run directory that contains every repo.
+	var primaryDir string
+	for _, wt := range run.Worktrees {
+		primaryDir = filepath.Dir(wt)
+		break
+	}
+
+	broker.LogPublish(r.LogBroker, runID, execLogFile, fmt.Sprintf("[w-bud] Running %s agent for execution...", agent.Name()))
 	var execErr error
 	var totalExecTokens agents.TokenUsage
-	if len(run.Worktrees) > 1 {
-		for repoName, wtPath := range run.Worktrees {
-			// Check abort between repos
-			run, _ = r.Store.GetRun(runID)
-			if run == nil || run.Status == "aborted" {
-				return
-			}
-
-			broker.LogPublish(r.LogBroker, runID, execLogFile, fmt.Sprintf("[w-bud] Running %s agent for %s...", agent.Name(), repoName))
-			prompt := BuildRepoExecutionPrompt(stories, *run, repoName, repos, cfg.GlobalPrompts)
-
-			repoTokens, repoErr := agent.Execute(ctx, prompt, wtPath, logWriter)
-			brokerWriter.Flush()
-
-			if repoTokens != nil {
-				totalExecTokens.InputTokens += repoTokens.InputTokens
-				totalExecTokens.OutputTokens += repoTokens.OutputTokens
-			}
-
-			if repoErr != nil {
-				broker.LogPublish(r.LogBroker, runID, execLogFile, fmt.Sprintf("[w-bud] %s execution failed for %s: %v", agent.Name(), repoName, repoErr))
-				execErr = fmt.Errorf("%s failed: %w", repoName, repoErr)
-				break
-			}
-			broker.LogPublish(r.LogBroker, runID, execLogFile, fmt.Sprintf("[w-bud] %s execution completed for %s.", agent.Name(), repoName))
-		}
-	} else {
-		prompt := BuildExecutionPrompt(stories, *run, repos, cfg.GlobalPrompts)
-		var primaryDir string
-		for _, wt := range run.Worktrees {
-			primaryDir = wt
-			break
-		}
-		broker.LogPublish(r.LogBroker, runID, execLogFile, fmt.Sprintf("[w-bud] Running %s agent for execution...", agent.Name()))
-		execTokens, execE := agent.Execute(ctx, prompt, primaryDir, logWriter)
-		execErr = execE
-		brokerWriter.Flush()
-		if execTokens != nil {
-			totalExecTokens = *execTokens
-		}
+	execTokens, execE := agent.Execute(ctx, prompt, primaryDir, logWriter)
+	execErr = execE
+	brokerWriter.Flush()
+	if execTokens != nil {
+		totalExecTokens = *execTokens
 	}
 
 	// Re-fetch run

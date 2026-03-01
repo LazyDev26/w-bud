@@ -381,6 +381,7 @@ Contributions are welcome. Some areas that could use help:
 - Try enabling the w-bud with cloud agents(`codex cloud`, `agent --cloud`, `copilot -p "/delegate"`) to make w-bud accessible to from anywhere
 - Enabling support for PR creation with the worktree created
 - Update comments for JIRA stories
+- Creation of sub-agents through CLI Agents and use them accordingly
 
 ---
 

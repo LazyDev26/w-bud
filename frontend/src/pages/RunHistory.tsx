@@ -2,16 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import type { Run } from '../types';
-import Breadcrumbs from '../components/common/Breadcrumbs';
-
-const statusConfig: Record<string, { icon: string; bg: string; text: string; label: string }> = {
-  done: { icon: 'check_circle', bg: 'bg-emerald-500/10 border-emerald-500/20', text: 'text-emerald-400', label: 'Success' },
-  failed: { icon: 'cancel', bg: 'bg-rose-500/10 border-rose-500/20', text: 'text-rose-400', label: 'Failed' },
-  aborted: { icon: 'do_not_disturb_on', bg: 'bg-amber-500/10 border-amber-500/20', text: 'text-amber-400', label: 'Aborted' },
-  planning: { icon: 'smart_toy', bg: 'bg-primary/10 border-primary/20', text: 'text-primary', label: 'Planning' },
-  awaiting_approval: { icon: 'hourglass_top', bg: 'bg-amber-500/10 border-amber-500/20', text: 'text-amber-400', label: 'Awaiting' },
-  executing: { icon: 'play_arrow', bg: 'bg-primary/10 border-primary/20', text: 'text-primary', label: 'Executing' },
-};
+import PageHeader from '../components/common/PageHeader';
+import StatusBadge from '../components/common/StatusBadge';
 
 export default function RunHistory() {
   const navigate = useNavigate();
@@ -62,16 +54,11 @@ export default function RunHistory() {
       <div className="flex-1 flex flex-col min-w-0 relative">
         {/* Header */}
         <header className="flex flex-col gap-4 px-8 py-6 border-b border-border-dark bg-panel-dark/50 backdrop-blur-sm sticky top-0 z-10">
-          <div className="flex items-center justify-between">
-            <div>
-              <Breadcrumbs items={[
-                { label: 'Home', to: '/' },
-                { label: 'Run History' },
-              ]} />
-              <h2 className="text-2xl font-bold text-white tracking-tight mt-2">Run History</h2>
-              <p className="text-text-secondary text-sm mt-1">All execution runs across sprints</p>
-            </div>
-          </div>
+          <PageHeader
+            breadcrumbs={[{ label: 'Home', to: '/' }, { label: 'Run History' }]}
+            title="Run History"
+            subtitle="All execution runs across sprints"
+          />
           {/* Filters */}
           <div className="flex flex-wrap items-center gap-3 mt-2">
             <div className="relative flex-1 min-w-[240px] max-w-md group">
@@ -120,7 +107,6 @@ export default function RunHistory() {
               </thead>
               <tbody className="divide-y divide-border-dark text-sm">
                 {filtered.map((run) => {
-                  const sc = statusConfig[run.status] || statusConfig.planning;
                   return (
                     <tr
                       key={run.run_id}
@@ -134,10 +120,7 @@ export default function RunHistory() {
                         {run.story_summary}
                       </td>
                       <td className="px-6 py-3">
-                        <span className={`inline-flex items-center gap-1.5 rounded px-2 py-1 text-xs font-medium ${sc.bg} ${sc.text} border`}>
-                          <span className="material-symbols-outlined text-[14px]">{sc.icon}</span>
-                          {sc.label}
-                        </span>
+                        <StatusBadge status={run.status} showPulse={true} showIcon={true} />
                       </td>
                       <td className="px-6 py-3 text-text-secondary font-mono">
                         {formatDuration(run.duration_seconds)}
@@ -179,9 +162,7 @@ export default function RunHistory() {
               <div>
                 <div className="flex items-center gap-3 mb-2">
                   <h3 className="text-xl font-bold text-white font-mono">{(selectedRun.story_ids || [selectedRun.story_id]).join(', ')}</h3>
-                  <span className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium ${statusConfig[selectedRun.status]?.bg} ${statusConfig[selectedRun.status]?.text} border`}>
-                    {statusConfig[selectedRun.status]?.label}
-                  </span>
+                  <StatusBadge status={selectedRun.status} showPulse={true} showIcon={true} />
                 </div>
                 <p className="text-text-secondary text-sm">{selectedRun.story_summary}</p>
                 <div className="flex gap-4 mt-3 text-xs text-slate-500 font-mono">

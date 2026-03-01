@@ -7,7 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/websocket"
-	"github.com/w-bud/backend/agents"
+	"github.com/w-bud/backend/broker"
 	"github.com/w-bud/backend/storage"
 )
 
@@ -17,7 +17,7 @@ var upgrader = websocket.Upgrader{
 
 type WSHandler struct {
 	Store     *storage.Store
-	LogBroker *agents.LogBroker
+	LogBroker *broker.LogBroker
 }
 
 func (h *WSHandler) StreamRun(w http.ResponseWriter, r *http.Request) {

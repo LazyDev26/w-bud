@@ -37,7 +37,7 @@ func (a *CodexAgent) Execute(ctx context.Context, prompt string, workDir string,
 }
 
 func (a *CodexAgent) run(ctx context.Context, prompt string, workDir string, logWriter io.Writer, captureOutput bool) (string, string, *TokenUsage, error) {
-	promptFile, err := writeTempPrompt(prompt)
+	promptFile, err := WriteTempPrompt(prompt)
 	if err != nil {
 		return "", "", nil, err
 	}

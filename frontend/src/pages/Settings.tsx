@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import type { AppConfig, GlobalPrompt } from '../types';
-import Breadcrumbs from '../components/common/Breadcrumbs';
 import FolderBrowser from '../components/common/FolderBrowser';
+import PageHeader from '../components/common/PageHeader';
+import SectionCard from '../components/common/SectionCard';
+import TagSelector from '../components/common/TagSelector';
+import type { Tag } from '../components/common/TagSelector';
 import { CursorIcon, OpenAIIcon, CopilotIcon } from '../components/common/AgentIcons';
 
 export default function Settings() {
@@ -14,7 +17,7 @@ export default function Settings() {
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [showBrowse, setShowBrowse] = useState(false);
   const [newPromptText, setNewPromptText] = useState('');
-  const [newPromptTag, setNewPromptTag] = useState<'planning' | 'execution' | 'both'>('both');
+  const [newPromptTag, setNewPromptTag] = useState<Tag>('both');
   const [agentStatus, setAgentStatus] = useState<Record<string, { available: boolean; version?: string; error?: string; checking: boolean }>>({});
 
   useEffect(() => {
@@ -202,28 +205,18 @@ export default function Settings() {
     )}
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="flex flex-col gap-6 p-8 pb-0">
-        <Breadcrumbs items={[
-          { label: 'Home', to: '/' },
-          { label: 'Settings' },
-        ]} />
-        <div>
-          <h1 className="text-2xl font-bold text-white">Settings</h1>
-          <p className="text-text-secondary text-sm mt-1">Configure application preferences</p>
-        </div>
+        <PageHeader
+          breadcrumbs={[{ label: 'Home', to: '/' }, { label: 'Settings' }]}
+          title="Settings"
+          subtitle="Configure application preferences"
+        />
       </div>
 
       <div className="flex-1 overflow-y-auto p-8 pt-6">
         <div className="max-w-2xl space-y-8">
 
           {/* JIRA Configuration */}
-          <section className="bg-panel-dark border border-border-dark rounded-xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-border-dark flex items-center gap-3">
-              <span className="material-symbols-outlined text-primary">cloud_sync</span>
-              <div>
-                <h2 className="text-white font-bold">JIRA Integration</h2>
-                <p className="text-text-secondary text-xs mt-0.5">Connect to your JIRA instance to fetch sprint stories</p>
-              </div>
-            </div>
+          <SectionCard icon="cloud_sync" title="JIRA Integration" subtitle="Connect to your JIRA instance to fetch sprint stories">
             <div className="p-6 space-y-4">
               <div>
                 <label className="block text-xs text-text-secondary mb-1.5 font-medium">JIRA Base URL</label>
@@ -321,17 +314,10 @@ export default function Settings() {
                 </button>
               </div>
             </div>
-          </section>
+          </SectionCard>
 
           {/* Webex Notifications */}
-          <section className="bg-panel-dark border border-border-dark rounded-xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-border-dark flex items-center gap-3">
-              <span className="material-symbols-outlined text-primary">chat</span>
-              <div>
-                <h2 className="text-white font-bold">Webex Notifications</h2>
-                <p className="text-text-secondary text-xs mt-0.5">Get notified in a Webex room when runs change status</p>
-              </div>
-            </div>
+          <SectionCard icon="chat" title="Webex Notifications" subtitle="Get notified in a Webex room when runs change status">
             <div className="p-6 space-y-4">
               <div>
                 <label className="block text-xs text-text-secondary mb-1.5 font-medium">Bot Token</label>
@@ -360,17 +346,10 @@ export default function Settings() {
                 <p className="text-text-secondary text-xs mt-1">The Webex room/space ID where notifications will be sent</p>
               </div>
             </div>
-          </section>
+          </SectionCard>
 
           {/* CLI Agents */}
-          <section className="bg-panel-dark border border-border-dark rounded-xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-border-dark flex items-center gap-3">
-              <span className="material-symbols-outlined text-primary">smart_toy</span>
-              <div>
-                <h2 className="text-white font-bold">CLI Agents</h2>
-                <p className="text-text-secondary text-xs mt-0.5">Choose which AI agents handle planning and execution - Login before using</p>
-              </div>
-            </div>
+          <SectionCard icon="smart_toy" title="CLI Agents" subtitle="Choose which AI agents handle planning and execution - Login before using">
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -495,17 +474,10 @@ export default function Settings() {
                 </button>
               </div>
             </div>
-          </section>
+          </SectionCard>
 
           {/* Global Prompts */}
-          <section className="bg-panel-dark border border-border-dark rounded-xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-border-dark flex items-center gap-3">
-              <span className="material-symbols-outlined text-primary">description</span>
-              <div>
-                <h2 className="text-white font-bold">Global Prompts</h2>
-                <p className="text-text-secondary text-xs mt-0.5">Default instructions sent with every planning or execution request</p>
-              </div>
-            </div>
+          <SectionCard icon="description" title="Global Prompts" subtitle="Default instructions sent with every planning or execution request">
             <div className="p-5">
               {/* Prompt list */}
               {config.global_prompts.length > 0 ? (
@@ -529,23 +501,7 @@ export default function Settings() {
                       </button>
                       <p className="flex-1 text-[13px] text-slate-300 truncate">{prompt.text}</p>
                       <div className="flex items-center gap-1.5 shrink-0">
-                        {(['planning', 'execution', 'both'] as const).map((tag) => (
-                          <button
-                            key={tag}
-                            onClick={() => updatePromptTag(prompt.id, tag)}
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
-                              prompt.tag === tag
-                                ? tag === 'planning'
-                                  ? 'bg-violet-500/20 text-violet-400 ring-1 ring-violet-500/30'
-                                  : tag === 'execution'
-                                  ? 'bg-amber-500/20 text-amber-400 ring-1 ring-amber-500/30'
-                                  : 'bg-primary/20 text-primary ring-1 ring-primary/30'
-                                : 'text-slate-600 hover:text-slate-400'
-                            }`}
-                          >
-                            {tag === 'planning' ? 'Plan' : tag === 'execution' ? 'Exec' : 'Both'}
-                          </button>
-                        ))}
+                        <TagSelector value={prompt.tag} onChange={(tag) => updatePromptTag(prompt.id, tag)} />
                         <button
                           onClick={() => removePrompt(prompt.id)}
                           className="ml-1 text-slate-700 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
@@ -575,23 +531,7 @@ export default function Settings() {
                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addPrompt(); } }}
                 />
                 <div className="flex items-center gap-1.5 shrink-0 pt-1">
-                  {(['planning', 'execution', 'both'] as const).map((tag) => (
-                    <button
-                      key={tag}
-                      onClick={() => setNewPromptTag(tag)}
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
-                        newPromptTag === tag
-                          ? tag === 'planning'
-                            ? 'bg-violet-500/20 text-violet-400 ring-1 ring-violet-500/30'
-                            : tag === 'execution'
-                            ? 'bg-amber-500/20 text-amber-400 ring-1 ring-amber-500/30'
-                            : 'bg-primary/20 text-primary ring-1 ring-primary/30'
-                          : 'text-slate-600 hover:text-slate-400'
-                      }`}
-                    >
-                      {tag === 'planning' ? 'Plan' : tag === 'execution' ? 'Exec' : 'Both'}
-                    </button>
-                  ))}
+                  <TagSelector value={newPromptTag} onChange={setNewPromptTag} />
                   <button
                     onClick={addPrompt}
                     disabled={!newPromptText.trim()}
@@ -602,17 +542,10 @@ export default function Settings() {
                 </div>
               </div>
             </div>
-          </section>
+          </SectionCard>
 
           {/* General */}
-          <section className="bg-panel-dark border border-border-dark rounded-xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-border-dark flex items-center gap-3">
-              <span className="material-symbols-outlined text-primary">tune</span>
-              <div>
-                <h2 className="text-white font-bold">General</h2>
-                <p className="text-text-secondary text-xs mt-0.5">Application-wide settings</p>
-              </div>
-            </div>
+          <SectionCard icon="tune" title="General" subtitle="Application-wide settings">
             <div className="p-6 space-y-4">
               <div>
                 <label className="block text-xs text-text-secondary mb-1.5 font-medium">Workspaces Root</label>
@@ -631,7 +564,7 @@ export default function Settings() {
                 <p className="text-text-secondary text-xs mt-1">Directory where git worktrees will be created for runs</p>
               </div>
             </div>
-          </section>
+          </SectionCard>
 
           {/* Error / Save */}
           {error && (

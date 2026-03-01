@@ -9,8 +9,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
-	"github.com/w-bud/backend/agents"
+	"github.com/w-bud/backend/broker"
 	"github.com/w-bud/backend/handlers"
+	"github.com/w-bud/backend/pipeline"
 	"github.com/w-bud/backend/storage"
 )
 
@@ -21,13 +22,14 @@ func main() {
 	store := storage.NewStore(dataDir)
 
 	// Reconcile stale locks on startup
-	reconcileLocks(store)
+	storage.ReconcileLocks(store)
 
-	logBroker := agents.NewLogBroker()
+	logBroker := broker.NewLogBroker()
+	runner := &pipeline.Runner{Store: store, LogBroker: logBroker}
 
 	repoH := &handlers.RepoHandler{Store: store}
 	storyH := &handlers.StoryHandler{Store: store}
-	runH := &handlers.RunHandler{Store: store, LogBroker: logBroker}
+	runH := &handlers.RunHandler{Store: store, Pipeline: runner}
 	wsH := &handlers.WSHandler{Store: store, LogBroker: logBroker}
 	cfgH := &handlers.ConfigHandler{Store: store}
 
@@ -83,36 +85,4 @@ func main() {
 	if err := http.ListenAndServe(":8000", r); err != nil {
 		log.Fatalf("Server failed: %v", err)
 	}
-}
-
-func reconcileLocks(store *storage.Store) {
-	locks, err := store.GetLocks()
-	if err != nil {
-		log.Printf("Warning: could not read locks: %v", err)
-		return
-	}
-	if len(locks) > 0 {
-		runs, err := store.GetRuns()
-		if err != nil {
-			return
-		}
-		activeRuns := map[string]bool{}
-		for _, run := range runs {
-			if run.Status == "planning" || run.Status == "awaiting_approval" || run.Status == "executing" {
-				activeRuns[run.RunID] = true
-			}
-		}
-		cleaned := false
-		for repo, runID := range locks {
-			if !activeRuns[runID] {
-				log.Printf("Clearing stale lock: repo=%s run=%s", repo, runID)
-				delete(locks, repo)
-				cleaned = true
-			}
-		}
-		if cleaned {
-			store.SaveLocks(locks)
-		}
-	}
-	log.Println("Lock reconciliation complete")
 }

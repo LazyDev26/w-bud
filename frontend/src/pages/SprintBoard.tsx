@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { api } from '../api/client';
 import type { Story, StoriesFile, Run, AppConfig } from '../types';
 import Breadcrumbs from '../components/common/Breadcrumbs';
+import EmptyState from '../components/common/EmptyState';
 
 const statusColors: Record<string, { bg: string; text: string; dot: string }> = {
   'In Progress': { bg: 'bg-amber-500/10', text: 'text-amber-400', dot: 'bg-amber-500' },
@@ -222,9 +223,8 @@ export default function SprintBoard() {
                   ))}
                   {storiesFile && storiesFile.stories.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="px-6 py-16 text-center text-text-secondary">
-                        <span className="material-symbols-outlined text-4xl mb-2 block opacity-30">inbox</span>
-                        No stories found in this sprint.
+                      <td colSpan={6} className="px-6 py-16">
+                        <EmptyState icon="inbox" message="No stories found in this sprint." />
                       </td>
                     </tr>
                   )}
@@ -331,9 +331,8 @@ export default function SprintBoard() {
             )}
 
             {activeRuns.length === 0 && recentRuns.length === 0 && (
-              <div className="text-center text-text-secondary text-sm mt-8">
-                <span className="material-symbols-outlined text-4xl mb-2 block opacity-30">smart_toy</span>
-                No runs yet. Select a story to begin.
+              <div className="mt-8">
+                <EmptyState icon="smart_toy" message="No runs yet. Select a story to begin." />
               </div>
             )}
           </div>

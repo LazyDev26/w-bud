@@ -1,4 +1,4 @@
-package agents
+package git
 
 import (
 	"fmt"
@@ -41,7 +41,7 @@ func (wm *WorktreeManager) SetupWorktrees(runID string, branchName string, repoN
 		wtPath := filepath.Join(runDir, repoName)
 
 		// Get current branch/HEAD to base worktree from
-		headRef, err := gitCurrentRef(repo.Path)
+		headRef, err := CurrentRef(repo.Path)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get HEAD for %s: %w", repoName, err)
 		}
@@ -87,6 +87,33 @@ func (wm *WorktreeManager) CleanupWorktrees(runID string, branchName string, rep
 	os.RemoveAll(runDir)
 }
 
+// CollectChangedFiles uses git diff in each worktree to find modified files.
+func CollectChangedFiles(worktrees map[string]string) []string {
+	var files []string
+	for repo, wtPath := range worktrees {
+		out, err := exec.Command("git", "-C", wtPath, "diff", "--name-only", "HEAD").Output()
+		if err != nil {
+			continue
+		}
+		for _, f := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+			if f != "" {
+				files = append(files, fmt.Sprintf("%s/%s", repo, f))
+			}
+		}
+	}
+	return files
+}
+
+// CurrentRef returns the current HEAD commit hash for a repository.
+func CurrentRef(repoPath string) (string, error) {
+	cmd := exec.Command("git", "-C", repoPath, "rev-parse", "HEAD")
+	out, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
 // removeWorktreeByBranch finds and force-removes any worktree using the given branch.
 func removeWorktreeByBranch(repoPath string, branchName string) {
 	// List worktrees to find which path uses this branch
@@ -105,13 +132,4 @@ func removeWorktreeByBranch(repoPath string, branchName string) {
 		}
 	}
 	exec.Command("git", "-C", repoPath, "worktree", "prune").Run()
-}
-
-func gitCurrentRef(repoPath string) (string, error) {
-	cmd := exec.Command("git", "-C", repoPath, "rev-parse", "HEAD")
-	out, err := cmd.Output()
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(out)), nil
 }

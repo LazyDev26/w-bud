@@ -3,6 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import type { Run, AppConfig } from '../types';
 import Breadcrumbs from '../components/common/Breadcrumbs';
+import TerminalViewer from '../components/common/TerminalViewer';
+import StatusBadge from '../components/common/StatusBadge';
+import StatCard from '../components/common/StatCard';
 
 export default function ExecutionMonitor() {
   const { runId } = useParams<{ runId: string }>();
@@ -172,60 +175,16 @@ export default function ExecutionMonitor() {
             </div>
 
             {/* Live terminal during planning */}
-            <div className="flex-1 bg-[#0d1117] rounded-xl border border-slate-800 shadow-2xl overflow-hidden flex flex-col font-mono text-sm">
-              <div className="h-10 bg-[#161b22] border-b border-slate-800 flex items-center justify-between px-4">
-                <div className="flex items-center gap-2">
-                  <div className="flex gap-1.5">
-                    <div className="w-3 h-3 rounded-full bg-red-500/80"></div>
-                    <div className="w-3 h-3 rounded-full bg-yellow-500/80"></div>
-                    <div className="w-3 h-3 rounded-full bg-green-500/80"></div>
-                  </div>
-                  <span className="ml-3 text-xs text-slate-500 font-medium">{config?.agents?.planning_agent === 'codex' ? 'Codex CLI' : config?.agents?.planning_agent === 'copilot' ? 'Copilot CLI' : 'Cursor CLI'} — Planning</span>
-                </div>
-                <span className="text-[10px] text-slate-600 uppercase font-bold tracking-wider">Live</span>
-              </div>
-              <div ref={termRef} className="flex-1 p-4 overflow-y-auto min-h-[300px]">
-                <div className="text-slate-400 space-y-1">
-                  {(() => {
-                    const hidden = showAllLogs ? 0 : Math.max(0, wsLines.length - LOG_TAIL);
-                    const visible = showAllLogs ? wsLines : wsLines.slice(-LOG_TAIL);
-                    const offset = showAllLogs ? 0 : hidden;
-                    return (
-                      <>
-                        {hidden > 0 && (
-                          <button
-                            onClick={() => setShowAllLogs(true)}
-                            className="w-full text-center text-xs text-slate-500 hover:text-primary py-1.5 mb-2 border border-dashed border-slate-700 rounded hover:border-primary/40 transition-colors"
-                          >
-                            Show {hidden} earlier line{hidden !== 1 ? 's' : ''}
-                          </button>
-                        )}
-                        {visible.map((line, i) => (
-                          <div key={offset + i} className="flex">
-                            <span className="w-8 text-slate-700 select-none text-right mr-3">{offset + i + 1}</span>
-                            <span className={
-                              line.startsWith('[w-bud]') ? 'text-primary' :
-                              line.startsWith('ERROR') ? 'text-red-400' :
-                              ''
-                            }>{line}</span>
-                          </div>
-                        ))}
-                      </>
-                    );
-                  })()}
-                  {wsLines.length === 0 && (
-                    <div className="flex">
-                      <span className="w-8 text-slate-700 select-none text-right mr-3">1</span>
-                      <span className="animate-pulse text-primary">Initializing planning agent...</span>
-                    </div>
-                  )}
-                  <div className="flex">
-                    <span className="w-8 text-slate-700 select-none text-right mr-3"></span>
-                    <span className="animate-pulse text-primary">|</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <TerminalViewer
+              ref={termRef}
+              lines={wsLines}
+              showAllLogs={showAllLogs}
+              onShowAll={() => setShowAllLogs(true)}
+              agentLabel={`${agentLabel(config?.agents?.planning_agent)} — Planning`}
+              mode="Live"
+              tailCount={LOG_TAIL}
+              emptyMessage="Initializing planning agent..."
+            />
           </div>
         )}
 
@@ -296,62 +255,18 @@ export default function ExecutionMonitor() {
             )}
 
             {/* Terminal */}
-            <div className="flex-1 bg-[#0d1117] rounded-xl border border-slate-800 shadow-2xl overflow-hidden flex flex-col font-mono text-sm">
-              <div className="h-10 bg-[#161b22] border-b border-slate-800 flex items-center justify-between px-4">
-                <div className="flex items-center gap-2">
-                  <div className="flex gap-1.5">
-                    <div className="w-3 h-3 rounded-full bg-red-500/80"></div>
-                    <div className="w-3 h-3 rounded-full bg-yellow-500/80"></div>
-                    <div className="w-3 h-3 rounded-full bg-green-500/80"></div>
-                  </div>
-                  <span className="ml-3 text-xs text-slate-500 font-medium">{config?.agents?.execution_agent === 'codex' ? 'Codex CLI' : config?.agents?.execution_agent === 'copilot' ? 'Copilot CLI' : 'Cursor CLI'} — Execution</span>
-                </div>
-                <span className="text-[10px] text-slate-600 uppercase font-bold tracking-wider">ReadOnly</span>
-              </div>
-              <div ref={termRef} className="flex-1 p-4 overflow-y-auto min-h-[400px]">
-                <div className="text-slate-400 space-y-1">
-                  {(() => {
-                    const hidden = showAllLogs ? 0 : Math.max(0, wsLines.length - LOG_TAIL);
-                    const visible = showAllLogs ? wsLines : wsLines.slice(-LOG_TAIL);
-                    const offset = showAllLogs ? 0 : hidden;
-                    return (
-                      <>
-                        {hidden > 0 && (
-                          <button
-                            onClick={() => setShowAllLogs(true)}
-                            className="w-full text-center text-xs text-slate-500 hover:text-primary py-1.5 mb-2 border border-dashed border-slate-700 rounded hover:border-primary/40 transition-colors"
-                          >
-                            Show {hidden} earlier line{hidden !== 1 ? 's' : ''}
-                          </button>
-                        )}
-                        {visible.map((line, i) => (
-                          <div key={offset + i} className="flex">
-                            <span className="w-8 text-slate-700 select-none text-right mr-3">{offset + i + 1}</span>
-                            <span className={
-                              line.startsWith('SUCCESS') ? 'text-green-400' :
-                              line.startsWith('PATCHING') || line.startsWith('WRITING') ? 'text-yellow-400' :
-                              line.startsWith('TASK:') ? 'text-purple-400' :
-                              line.startsWith('DONE') ? 'text-emerald-400 font-bold' :
-                              ''
-                            }>{line}</span>
-                          </div>
-                        ))}
-                      </>
-                    );
-                  })()}
-                  {wsLines.length === 0 && (
-                    <div className="flex">
-                      <span className="w-8 text-slate-700 select-none text-right mr-3">1</span>
-                      <span className="animate-pulse text-primary">Connecting to execution stream...</span>
-                    </div>
-                  )}
-                  <div className="flex">
-                    <span className="w-8 text-slate-700 select-none text-right mr-3"></span>
-                    <span className="animate-pulse text-primary">|</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <TerminalViewer
+              ref={termRef}
+              lines={wsLines}
+              showAllLogs={showAllLogs}
+              onShowAll={() => setShowAllLogs(true)}
+              agentLabel={`${agentLabel(config?.agents?.execution_agent)} — Execution`}
+              mode="ReadOnly"
+              tailCount={LOG_TAIL}
+              minHeight="400px"
+              colorLine={execColorLine}
+              emptyMessage="Connecting to execution stream..."
+            />
           </div>
         )}
 
@@ -494,43 +409,22 @@ export default function ExecutionMonitor() {
   );
 }
 
-function StatusBadge({ status }: { status: string }) {
-  const config: Record<string, { bg: string; text: string }> = {
-    planning: { bg: 'bg-primary/10 border-primary/20', text: 'text-primary' },
-    awaiting_approval: { bg: 'bg-amber-500/10 border-amber-500/20', text: 'text-amber-400' },
-    executing: { bg: 'bg-primary/10 border-primary/20', text: 'text-primary' },
-    done: { bg: 'bg-emerald-500/10 border-emerald-500/20', text: 'text-emerald-400' },
-    failed: { bg: 'bg-red-500/10 border-red-500/20', text: 'text-red-400' },
-    aborted: { bg: 'bg-amber-500/10 border-amber-500/20', text: 'text-amber-400' },
-  };
-  const c = config[status] || config.planning;
+function agentLabel(agent?: string): string {
+  if (agent === 'codex') return 'Codex CLI';
+  if (agent === 'copilot') return 'Copilot CLI';
+  return 'Cursor CLI';
+}
 
-  return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full ${c.bg} border ${c.text} text-xs font-mono font-medium uppercase tracking-wide`}>
-      {['planning', 'executing'].includes(status) && (
-        <span className="relative flex h-2 w-2">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-current opacity-75"></span>
-          <span className="relative inline-flex rounded-full h-2 w-2 bg-current"></span>
-        </span>
-      )}
-      {status.replace('_', ' ')}
-    </span>
-  );
+function execColorLine(line: string): string {
+  if (line.startsWith('SUCCESS')) return 'text-green-400';
+  if (line.startsWith('PATCHING') || line.startsWith('WRITING')) return 'text-yellow-400';
+  if (line.startsWith('TASK:')) return 'text-purple-400';
+  if (line.startsWith('DONE')) return 'text-emerald-400 font-bold';
+  return '';
 }
 
 function fmtTokens(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
   return String(n);
-}
-
-function StatCard({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
-  return (
-    <div className="p-3 bg-surface-dark rounded-lg border border-border-dark">
-      <p className="text-xs text-text-secondary font-medium mb-1">{label}</p>
-      <p className={`text-sm font-mono font-bold ${highlight ? 'text-primary capitalize' : 'text-white'} truncate`}>
-        {value}
-      </p>
-    </div>
-  );
 }

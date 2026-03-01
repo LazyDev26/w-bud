@@ -18,4 +18,12 @@ if [ -d "$LOGS_DIR" ]; then
   echo "[w-bud] Cleared log files in $LOGS_DIR"
 fi
 
+# Clean up worktree directories (run-* folders under workspaces_root)
+WORKSPACES_ROOT=$(grep -o '"workspaces_root":[[:space:]]*"[^"]*"' "$DATA_DIR/config.json" | sed 's/.*"workspaces_root":[[:space:]]*"\(.*\)"/\1/')
+if [ -n "$WORKSPACES_ROOT" ] && [ -d "$WORKSPACES_ROOT" ]; then
+  for d in "$WORKSPACES_ROOT"/run-*; do
+    [ -d "$d" ] && rm -rf "$d" && echo "[w-bud] Removed worktree: $d"
+  done
+fi
+
 echo "[w-bud] Soft reset complete. Config and repos preserved."

@@ -339,6 +339,9 @@ Contributions are welcome. Some areas that could use help:
 - Support for Linear, GitHub Issues, or other project trackers
 - Multi-board / multi-project support
 - Persistent storage backend (SQLite, etc.)
+- Prompts associated with a repo
+- Support for configuring models and reasoning effort of the CLI agents
+- Try enabling the w-bud with cloud agents(`codex cloud`, `agent --cloud`, `copilot -p "/delegate"`) to make w-bud accessible to multiple users
 
 ---
 

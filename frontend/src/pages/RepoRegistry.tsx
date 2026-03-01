@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import type { Repo } from '../types';
-import Breadcrumbs from '../components/common/Breadcrumbs';
 import FolderBrowser from '../components/common/FolderBrowser';
+import PageHeader from '../components/common/PageHeader';
+import EmptyState from '../components/common/EmptyState';
 
 export default function RepoRegistry() {
   const [repos, setRepos] = useState<Repo[]>([]);
@@ -80,26 +81,20 @@ export default function RepoRegistry() {
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
       <div className="flex flex-col gap-6 p-8 pb-0">
-        <Breadcrumbs items={[
-          { label: 'Home', to: '/' },
-          { label: 'Settings' },
-          { label: 'Repository Registry' },
-        ]} />
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div className="flex flex-col gap-2">
-            <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-white">Repository Registry</h1>
-            <p className="text-text-secondary text-base max-w-2xl">
-              Manage and validate your local git repositories. Only valid repos appear as selectable in story configuration.
-            </p>
-          </div>
-          <button
-            onClick={() => { setShowAdd(true); setEditId(null); setName(''); setPath(''); }}
-            className="flex items-center gap-2 bg-primary hover:bg-blue-600 text-white font-bold py-2.5 px-5 rounded-lg transition-colors shadow-lg shadow-primary/20"
-          >
-            <span className="material-symbols-outlined text-[20px]">add</span>
-            Add New Repo
-          </button>
-        </div>
+        <PageHeader
+          breadcrumbs={[{ label: 'Home', to: '/' }, { label: 'Settings' }, { label: 'Repository Registry' }]}
+          title="Repository Registry"
+          subtitle="Manage and validate your local git repositories. Only valid repos appear as selectable in story configuration."
+          actions={
+            <button
+              onClick={() => { setShowAdd(true); setEditId(null); setName(''); setPath(''); }}
+              className="flex items-center gap-2 bg-primary hover:bg-blue-600 text-white font-bold py-2.5 px-5 rounded-lg transition-colors shadow-lg shadow-primary/20"
+            >
+              <span className="material-symbols-outlined text-[20px]">add</span>
+              Add New Repo
+            </button>
+          }
+        />
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -275,8 +270,11 @@ export default function RepoRegistry() {
                 ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="px-6 py-12 text-center text-text-secondary">
-                      {repos.length === 0 ? 'No repositories registered yet.' : 'No matches found.'}
+                    <td colSpan={4} className="px-6 py-12">
+                      <EmptyState
+                        icon={repos.length === 0 ? 'folder_off' : 'search_off'}
+                        message={repos.length === 0 ? 'No repositories registered yet.' : 'No matches found.'}
+                      />
                     </td>
                   </tr>
                 )}

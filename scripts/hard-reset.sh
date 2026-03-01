@@ -8,6 +8,14 @@ DATA_DIR="$(dirname "$SCRIPT_DIR")/data"
 
 echo "[w-bud] Hard reset — clearing ALL data..."
 
+# Clean up worktree directories BEFORE wiping config
+WORKSPACES_ROOT=$(grep -o '"workspaces_root":[[:space:]]*"[^"]*"' "$DATA_DIR/config.json" 2>/dev/null | sed 's/.*"workspaces_root":[[:space:]]*"\(.*\)"/\1/')
+if [ -n "$WORKSPACES_ROOT" ] && [ -d "$WORKSPACES_ROOT" ]; then
+  for d in "$WORKSPACES_ROOT"/run-*; do
+    [ -d "$d" ] && rm -rf "$d" && echo "[w-bud] Removed worktree: $d"
+  done
+fi
+
 echo '{"sprint_id":"","sprint_name":"","last_fetched":"","stories":[]}' > "$DATA_DIR/stories.json"
 echo '{"runs":[]}' > "$DATA_DIR/runs.json"
 echo '{}' > "$DATA_DIR/locks.json"

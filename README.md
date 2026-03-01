@@ -268,6 +268,20 @@ Repos are locked per-run to prevent concurrent modifications. Stale locks from c
 
 You can mix agents — e.g., Copilot for planning and Codex for execution. The Settings page shows real-time availability and version info. Unavailable agents are greyed out.
 
+### Why CLI Agents?
+
+w-bud uses **CLI-based coding agents** rather than API-only LLMs because CLI agents run locally against your actual filesystem. This means they can read, navigate, and understand one or more full repositories before making changes — not just a single file or snippet pasted into a prompt. When a run targets multiple repos, the agent has the complete codebase context of each one, which is critical for cross-repo changes like updating a shared API contract between a backend service and its frontend consumer.
+
+### Agent Skills
+
+If you want your agents to have additional capabilities or follow specific best practices, you can install **skills** from [skills.sh](https://skills.sh) at the global level for your agent. Skills are reusable instruction sets that get loaded into the agent's context at runtime — for example, `test-driven-development`, `react-native-best-practices`, or `systematic-debugging`. Install them with:
+
+```bash
+npx skills add <owner/skill-name>
+```
+
+Since w-bud delegates to CLI agents, any skills installed globally for that agent will automatically apply to all w-bud runs.
+
 ---
 
 ## API Reference
@@ -359,12 +373,14 @@ When configured, these events are pushed to your Webex room:
 
 Contributions are welcome. Some areas that could use help:
 
-- Additional agent integrations (Claude CLI, Aider, etc.)
+- Additional agent integrations (Claude CLI, etc.)
 - Support for Linear, GitHub Issues, or other project trackers
 - Multi-board / multi-project support
 - Persistent storage backend (SQLite, etc.)
 - Support for configuring models and reasoning effort of the CLI agents
 - Try enabling the w-bud with cloud agents(`codex cloud`, `agent --cloud`, `copilot -p "/delegate"`) to make w-bud accessible to from anywhere
+- Enabling support for PR creation with the worktree created
+- Update comments for JIRA stories
 
 ---
 

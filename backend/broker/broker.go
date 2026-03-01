@@ -24,13 +24,23 @@ func NewLogBroker() *LogBroker {
 // Any lines already published are replayed immediately.
 func (lb *LogBroker) Subscribe(runID string) chan string {
 	lb.mu.Lock()
-	defer lb.mu.Unlock()
 	ch := make(chan string, 256)
-	// Replay history
-	for _, line := range lb.history[runID] {
-		ch <- line
-	}
+	// Register subscriber first so it also receives lines published concurrently.
 	lb.subs[runID] = append(lb.subs[runID], ch)
+	// Snapshot history under the lock, then release before writing to the channel
+	// to avoid deadlocking when history exceeds the channel buffer.
+	hist := make([]string, len(lb.history[runID]))
+	copy(hist, lb.history[runID])
+	lb.mu.Unlock()
+
+	// Replay history outside the lock — the channel may fill up, so we use a
+	// goroutine to avoid blocking the caller.
+	go func() {
+		for _, line := range hist {
+			ch <- line
+		}
+	}()
+
 	return ch
 }
 

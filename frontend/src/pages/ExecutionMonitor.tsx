@@ -47,6 +47,10 @@ export default function ExecutionMonitor() {
       setWsLines([]);
       setShowAllLogs(false);
     }
+    // Cleanup: close WebSocket when status changes or component unmounts
+    return () => {
+      if (wsRef.current) { wsRef.current.close(); wsRef.current = null; }
+    };
   }, [run?.status]);
 
   useEffect(() => {

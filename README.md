@@ -132,16 +132,18 @@ w-bud/
 ├── backend/
 │   ├── main.go                  # Entry point, router, lock reconciliation
 │   ├── agents/
-│   │   ├── agent.go             # Agent interface, LogBroker (pub/sub), BrokerWriter
+│   │   ├── agent.go             # Agent interface, NewAgent factory
 │   │   ├── cursor.go            # Cursor CLI wrapper
 │   │   ├── codex.go             # OpenAI Codex CLI wrapper
 │   │   ├── copilot.go           # GitHub Copilot CLI wrapper
-│   │   ├── prompt.go            # Planning & execution prompt builders
-│   │   ├── webex.go             # Webex notification sender
-│   │   └── worktree.go          # Git worktree setup & cleanup
+│   │   └── helpers.go           # Shared CLI helpers (temp prompt, exec & capture)
+│   ├── broker/
+│   │   └── broker.go            # LogBroker pub/sub + BrokerWriter (deadlock-safe)
+│   ├── git/
+│   │   └── worktree.go          # Git worktree setup & cleanup per run
 │   ├── handlers/
 │   │   ├── stories.go           # Story endpoints + JIRA sync
-│   │   ├── runs.go              # Run CRUD, planning & execution pipelines
+│   │   ├── runs.go              # Run CRUD (thin handlers, delegates to pipeline)
 │   │   ├── repos.go             # Repo registry CRUD + validation
 │   │   ├── config.go            # Config CRUD + agent CLI check
 │   │   ├── browse.go            # Filesystem browser for workspace selection
@@ -150,9 +152,19 @@ w-bud/
 │   ├── jira/
 │   │   └── client.go            # JIRA Agile API client (sprints, stories, ADF parsing)
 │   ├── models/
-│   │   └── models.go            # All data types (Config, Story, Run, Repo, etc.)
+│   │   ├── config.go            # Config, JIRA, Webex, Agents structs
+│   │   ├── repo.go              # Repo struct (incl. per-repo prompt)
+│   │   ├── run.go               # Run, RunsFile, LocksFile structs
+│   │   ├── story.go             # Story, Subtask, StoriesFile structs
+│   │   └── requests.go          # API request/response types
+│   ├── notify/
+│   │   └── webex.go             # Webex notification sender
+│   ├── pipeline/
+│   │   ├── runner.go            # Run lifecycle orchestration (planning + execution)
+│   │   └── prompt.go            # Planning & execution prompt builders
 │   └── storage/
-│       └── json_store.go        # Thread-safe JSON file storage
+│       ├── json_store.go        # Thread-safe JSON file storage
+│       └── reconcile.go         # Stale lock cleanup on startup
 │
 ├── frontend/
 │   ├── src/
@@ -209,6 +221,18 @@ w-bud never modifies your original repositories directly. Here's how it works:
 
 After a run completes, you review the diff in the UI. If you're happy, merge the feature branch into your main branch using your normal git workflow. If not, discard it — nothing in your original repo was touched.
 
+### Repository Prompts
+
+Each registered repo can have an optional **prompt** — free-text instructions specific to that codebase. Examples:
+
+- *"This is a Go microservice using chi router. Always run `go vet` after changes."*
+- *"React 19 + Tailwind v4 frontend. Use functional components with hooks only."*
+- *"Monorepo — only modify packages under `packages/core/`."*
+
+Repo prompts are configured in the Repo Registry page (click the document icon on any repo row, or set it when adding/editing a repo).
+
+When a run includes repos that have prompts, a **"Repository-Specific Instructions"** section is automatically added to both the planning and execution prompts. If no repos in the run have prompts, nothing is added — the prompt stays clean.
+
 ---
 
 ## Run Pipeline
@@ -225,9 +249,9 @@ After a run completes, you review the diff in the UI. If you're happy, merge the
                   At any active stage → aborted (user abort)
 ```
 
-1. **Planning** — Git worktrees are created per repo on a feature branch. The planning agent receives a structured prompt and returns a markdown plan.
+1. **Planning** — Git worktrees are created per repo on a feature branch. The planning agent receives a structured prompt and returns a markdown plan. Logs are streamed back to the UI in real time via a WebSocket pub/sub broker (`broker/broker.go`), so you can watch agent output as it happens.
 2. **Approval** — The plan is displayed for review. Edit, approve, or reject. Auto-approve can be enabled in settings.
-3. **Execution** — The execution agent implements changes in the worktree. Output streams live via WebSocket.
+3. **Execution** — The execution agent implements changes in the worktree. Logs continue streaming over the same WebSocket connection. Late subscribers (e.g., navigating back to the page) automatically receive the full history.
 4. **Completion** — Changed files are detected via `git diff`, duration is recorded, and the run is marked done.
 
 Repos are locked per-run to prevent concurrent modifications. Stale locks from crashed runs are cleaned up on backend startup.
@@ -339,9 +363,8 @@ Contributions are welcome. Some areas that could use help:
 - Support for Linear, GitHub Issues, or other project trackers
 - Multi-board / multi-project support
 - Persistent storage backend (SQLite, etc.)
-- Prompts associated with a repo
 - Support for configuring models and reasoning effort of the CLI agents
-- Try enabling the w-bud with cloud agents(`codex cloud`, `agent --cloud`, `copilot -p "/delegate"`) to make w-bud accessible to multiple users
+- Try enabling the w-bud with cloud agents(`codex cloud`, `agent --cloud`, `copilot -p "/delegate"`) to make w-bud accessible to from anywhere
 
 ---
 

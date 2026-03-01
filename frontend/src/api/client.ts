@@ -22,9 +22,9 @@ export const api = {
 
   // Repos
   getRepos: () => request<import('../types').Repo[]>('/api/repos'),
-  createRepo: (data: { name: string; path: string }) =>
+  createRepo: (data: { name: string; path: string; prompt?: string }) =>
     request<import('../types').Repo>('/api/repos', { method: 'POST', body: JSON.stringify(data) }),
-  updateRepo: (id: string, data: { name: string; path: string }) =>
+  updateRepo: (id: string, data: { name: string; path: string; prompt?: string }) =>
     request<import('../types').Repo>(`/api/repos/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteRepo: (id: string) =>
     request<void>(`/api/repos/${id}`, { method: 'DELETE' }),

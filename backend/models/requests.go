@@ -13,13 +13,15 @@ type CreateRunRequest struct {
 }
 
 type CreateRepoRequest struct {
-	Name string `json:"name"`
-	Path string `json:"path"`
+	Name   string `json:"name"`
+	Path   string `json:"path"`
+	Prompt string `json:"prompt"`
 }
 
 type UpdateRepoRequest struct {
-	Name string `json:"name"`
-	Path string `json:"path"`
+	Name   string `json:"name"`
+	Path   string `json:"path"`
+	Prompt string `json:"prompt"`
 }
 
 type ApproveRunRequest struct {

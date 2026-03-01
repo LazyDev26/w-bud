@@ -27,6 +27,7 @@ export interface Repo {
   id: string;
   name: string;
   path: string;
+  prompt?: string;
   valid: boolean;
   last_validated: string;
 }

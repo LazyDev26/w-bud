@@ -43,6 +43,7 @@ func (h *RepoHandler) Create(w http.ResponseWriter, r *http.Request) {
 		ID:            uuid.New().String()[:8],
 		Name:          req.Name,
 		Path:          req.Path,
+		Prompt:        req.Prompt,
 		Valid:         valid,
 		LastValidated: time.Now(),
 	}
@@ -88,6 +89,7 @@ func (h *RepoHandler) Update(w http.ResponseWriter, r *http.Request) {
 				repos[i].Valid = validateRepoPath(req.Path)
 				repos[i].LastValidated = time.Now()
 			}
+			repos[i].Prompt = req.Prompt
 			found = true
 			if err := h.Store.SaveRepos(repos); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)

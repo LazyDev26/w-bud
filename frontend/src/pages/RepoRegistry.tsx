@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { api } from '../api/client';
 import type { Repo } from '../types';
 import FolderBrowser from '../components/common/FolderBrowser';
@@ -12,7 +12,9 @@ export default function RepoRegistry() {
   const [name, setName] = useState('');
   const [path, setPath] = useState('');
   const [filter, setFilter] = useState('');
+  const [prompt, setPrompt] = useState('');
   const [showBrowser, setShowBrowser] = useState(false);
+  const [expandedPrompt, setExpandedPrompt] = useState<string | null>(null);
 
   useEffect(() => {
     loadRepos();
@@ -29,18 +31,20 @@ export default function RepoRegistry() {
 
   async function handleAdd() {
     if (!name || !path) return;
-    await api.createRepo({ name, path });
+    await api.createRepo({ name, path, prompt });
     setName('');
     setPath('');
+    setPrompt('');
     setShowAdd(false);
     loadRepos();
   }
 
   async function handleUpdate(id: string) {
-    await api.updateRepo(id, { name, path });
+    await api.updateRepo(id, { name, path, prompt });
     setEditId(null);
     setName('');
     setPath('');
+    setPrompt('');
     loadRepos();
   }
 
@@ -58,6 +62,7 @@ export default function RepoRegistry() {
     setEditId(repo.id);
     setName(repo.name);
     setPath(repo.path);
+    setPrompt(repo.prompt || '');
   }
 
   const validCount = repos.filter((r) => r.valid).length;
@@ -87,7 +92,7 @@ export default function RepoRegistry() {
           subtitle="Manage and validate your local git repositories. Only valid repos appear as selectable in story configuration."
           actions={
             <button
-              onClick={() => { setShowAdd(true); setEditId(null); setName(''); setPath(''); }}
+              onClick={() => { setShowAdd(true); setEditId(null); setName(''); setPath(''); setPrompt(''); }}
               className="flex items-center gap-2 bg-primary hover:bg-blue-600 text-white font-bold py-2.5 px-5 rounded-lg transition-colors shadow-lg shadow-primary/20"
             >
               <span className="material-symbols-outlined text-[20px]">add</span>
@@ -158,6 +163,17 @@ export default function RepoRegistry() {
                 </div>
               </div>
             </div>
+            <div className="mb-4">
+              <label className="block text-xs text-text-secondary mb-1">Repository Prompt <span className="text-slate-500">(optional)</span></label>
+              <textarea
+                className="w-full bg-bg-dark border border-border-dark rounded-md text-sm text-white px-3 py-2 focus:ring-1 focus:ring-primary focus:border-primary font-mono resize-none"
+                placeholder="e.g. This is a Go microservice using chi router. Always run go vet after changes."
+                rows={3}
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+              />
+              <p className="text-xs text-slate-500 mt-1">Instructions specific to this repo, included in planning &amp; execution prompts.</p>
+            </div>
             <div className="flex gap-2">
               <button
                 onClick={() => editId ? handleUpdate(editId) : handleAdd()}
@@ -188,9 +204,13 @@ export default function RepoRegistry() {
               />
             </div>
             <button
-              onClick={() => repos.forEach((r) => handleValidate(r.id))}
+              onClick={async () => {
+                const latest = await api.getRepos();
+                setRepos(latest);
+                latest.forEach((r) => handleValidate(r.id));
+              }}
               className="p-2 text-text-secondary hover:text-white rounded-lg hover:bg-surface-hover transition-colors"
-              title="Refresh Status"
+              data-tooltip="Refresh Status"
             >
               <span className="material-symbols-outlined">refresh</span>
             </button>
@@ -209,15 +229,21 @@ export default function RepoRegistry() {
               </thead>
               <tbody className="divide-y divide-border-dark">
                 {filtered.map((repo) => (
-                  <tr key={repo.id} className="group hover:bg-surface-hover transition-colors">
+                  <Fragment key={repo.id}>
+                  <tr className="group hover:bg-surface-hover transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded bg-primary/20 flex items-center justify-center text-primary">
                           <span className="material-symbols-outlined text-[18px]">terminal</span>
                         </div>
-                        <span className="text-sm font-bold text-white group-hover:text-primary transition-colors">
-                          {repo.name}
-                        </span>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-bold text-white group-hover:text-primary transition-colors">
+                            {repo.name}
+                          </span>
+                          {repo.prompt && (
+                            <span className="text-[10px] text-primary/60 font-medium uppercase tracking-wider">has prompt</span>
+                          )}
+                        </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -246,27 +272,58 @@ export default function RepoRegistry() {
                         <button
                           onClick={() => handleValidate(repo.id)}
                           className="p-1.5 text-text-secondary hover:text-primary rounded hover:bg-primary/10 transition-colors"
-                          title="Re-validate"
+                          data-tooltip="Re-validate"
                         >
                           <span className="material-symbols-outlined text-[20px]">refresh</span>
                         </button>
                         <button
                           onClick={() => startEdit(repo)}
                           className="p-1.5 text-text-secondary hover:text-primary rounded hover:bg-primary/10 transition-colors"
-                          title="Edit"
+                          data-tooltip="Edit"
                         >
                           <span className="material-symbols-outlined text-[20px]">edit</span>
                         </button>
                         <button
+                          onClick={() => setExpandedPrompt(expandedPrompt === repo.id ? null : repo.id)}
+                          className={`p-1.5 rounded transition-colors ${repo.prompt ? 'text-primary hover:bg-primary/10' : 'text-text-secondary hover:text-primary hover:bg-primary/10'}`}
+                          data-tooltip={repo.prompt ? 'View/Edit Prompt' : 'Add Prompt'}
+                        >
+                          <span className="material-symbols-outlined text-[20px]">description</span>
+                        </button>
+                        <button
                           onClick={() => handleDelete(repo.id)}
                           className="p-1.5 text-text-secondary hover:text-red-400 rounded hover:bg-red-500/10 transition-colors"
-                          title="Remove"
+                          data-tooltip="Remove"
                         >
                           <span className="material-symbols-outlined text-[20px]">delete</span>
                         </button>
                       </div>
                     </td>
                   </tr>
+                  {expandedPrompt === repo.id && (
+                    <tr>
+                      <td colSpan={4} className="px-6 py-3 bg-bg-dark/50">
+                        <div className="flex flex-col gap-2">
+                          <label className="text-xs text-text-secondary font-medium">Repository Prompt for {repo.name}</label>
+                          <textarea
+                            className="w-full bg-bg-dark border border-border-dark rounded-md text-sm text-white px-3 py-2 focus:ring-1 focus:ring-primary focus:border-primary font-mono resize-none"
+                            placeholder="e.g. This is a Go microservice using chi router. Always run go vet after changes."
+                            rows={3}
+                            defaultValue={repo.prompt || ''}
+                            onBlur={async (e) => {
+                              const newPrompt = e.target.value;
+                              if (newPrompt !== (repo.prompt || '')) {
+                                await api.updateRepo(repo.id, { name: repo.name, path: repo.path, prompt: newPrompt });
+                                loadRepos();
+                              }
+                            }}
+                          />
+                          <p className="text-xs text-slate-500">Instructions specific to this repo, included in planning &amp; execution prompts. Auto-saves on blur.</p>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 ))}
                 {filtered.length === 0 && (
                   <tr>

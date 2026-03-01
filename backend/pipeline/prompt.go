@@ -64,6 +64,9 @@ func BuildPlanningPrompt(stories []models.Story, run models.Run, repos []models.
 	}
 	b.WriteString("\n")
 
+	// Repository-specific instructions (only if any repo has a prompt)
+	writeRepoPrompts(&b, run.Repos, repos)
+
 	// User-provided context
 	if run.Context != "" {
 		b.WriteString("## Additional Context\n")
@@ -141,6 +144,9 @@ func BuildExecutionPrompt(stories []models.Story, run models.Run, repos []models
 		b.WriteString("\n")
 	}
 
+	// Repository-specific instructions (only if any repo has a prompt)
+	writeRepoPrompts(&b, run.Repos, repos)
+
 	// Plan
 	b.WriteString("## Approved Plan\n")
 	b.WriteString(run.PlanMD)
@@ -191,6 +197,13 @@ func BuildRepoExecutionPrompt(stories []models.Story, run models.Run, repoName s
 	b.WriteString(fmt.Sprintf("## Target Repository: %s\n", repoName))
 	b.WriteString(fmt.Sprintf("You are working inside the `%s` repository. Implement ONLY the changes from the plan that belong to this repository. Ignore sections of the plan that target other repositories.\n\n", repoName))
 
+	// Repository-specific instructions for this repo
+	if p := getRepoPrompt(repoName, repos); p != "" {
+		b.WriteString("## Repository-Specific Instructions\n")
+		b.WriteString(p)
+		b.WriteString("\n\n")
+	}
+
 	// Plan
 	b.WriteString("## Approved Plan\n")
 	b.WriteString(run.PlanMD)
@@ -230,4 +243,40 @@ func filterPrompts(prompts []models.GlobalPrompt, phase string) []models.GlobalP
 		}
 	}
 	return out
+}
+
+// writeRepoPrompts writes a "Repository-Specific Instructions" section if any
+// of the run's repos have a non-empty Prompt. If none do, nothing is written.
+func writeRepoPrompts(b *strings.Builder, repoNames []string, repos []models.Repo) {
+	type entry struct {
+		name   string
+		prompt string
+	}
+	var entries []entry
+	for _, rn := range repoNames {
+		if p := getRepoPrompt(rn, repos); p != "" {
+			entries = append(entries, entry{name: rn, prompt: p})
+		}
+	}
+	if len(entries) == 0 {
+		return
+	}
+	b.WriteString("## Repository-Specific Instructions\n")
+	for _, e := range entries {
+		if len(entries) > 1 {
+			b.WriteString(fmt.Sprintf("### %s\n", e.name))
+		}
+		b.WriteString(e.prompt)
+		b.WriteString("\n\n")
+	}
+}
+
+// getRepoPrompt returns the Prompt for a repo by name, or "" if not found/empty.
+func getRepoPrompt(repoName string, repos []models.Repo) string {
+	for _, r := range repos {
+		if r.Name == repoName {
+			return r.Prompt
+		}
+	}
+	return ""
 }

@@ -24,7 +24,7 @@ BACKEND_PID=$!
 
 # Start frontend
 echo "[w-bud] Starting frontend on :3000..."
-cd "$ROOT_DIR/frontend" && npm run dev &
+cd "$ROOT_DIR/frontend" && npm install && npm run dev &
 FRONTEND_PID=$!
 
 echo "[w-bud] Backend PID=$BACKEND_PID | Frontend PID=$FRONTEND_PID"

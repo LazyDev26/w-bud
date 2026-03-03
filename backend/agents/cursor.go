@@ -19,9 +19,9 @@ func (a *CursorAgent) Plan(ctx context.Context, prompt string, workDir string, l
 	return out, nil, err
 }
 
-func (a *CursorAgent) Execute(ctx context.Context, prompt string, workDir string, logWriter io.Writer) (*TokenUsage, error) {
-	_, err := a.run(ctx, prompt, workDir, logWriter)
-	return nil, err
+func (a *CursorAgent) Execute(ctx context.Context, prompt string, workDir string, logWriter io.Writer) (string, *TokenUsage, error) {
+	out, err := a.run(ctx, prompt, workDir, logWriter)
+	return out, nil, err
 }
 
 func (a *CursorAgent) run(ctx context.Context, prompt string, workDir string, logWriter io.Writer) (string, error) {

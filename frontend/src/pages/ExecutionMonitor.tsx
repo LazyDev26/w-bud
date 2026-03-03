@@ -22,6 +22,8 @@ export default function ExecutionMonitor() {
   const [fileLines, setFileLines] = useState<string[]>([]);
   const [expandedDiffs, setExpandedDiffs] = useState<Record<string, string>>({});
   const [loadingDiff, setLoadingDiff] = useState<string | null>(null);
+  const [planExpanded, setPlanExpanded] = useState(false);
+  const [execSummaryExpanded, setExecSummaryExpanded] = useState(false);
   const LOG_TAIL = 50;
 
   useEffect(() => {
@@ -388,13 +390,39 @@ export default function ExecutionMonitor() {
               );
             })()}
 
-            {/* Plan (read-only) */}
+            {/* Plan (collapsible) */}
             {run.plan_md && (
               <div className="mb-6">
-                <h3 className="text-sm font-bold text-white uppercase mb-3">Plan</h3>
-                <div className="bg-surface-dark border border-border-dark rounded-lg p-4">
-                  <pre className="whitespace-pre-wrap text-sm text-slate-300 font-mono">{run.plan_md}</pre>
-                </div>
+                <button
+                  onClick={() => setPlanExpanded(!planExpanded)}
+                  className="flex items-center gap-2 w-full text-left mb-2 group"
+                >
+                  <span className="material-symbols-outlined text-slate-400 text-[18px] transition-transform group-hover:text-white" style={{ transform: planExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>expand_more</span>
+                  <h3 className="text-sm font-bold text-white uppercase">Plan</h3>
+                </button>
+                {planExpanded && (
+                  <div className="bg-surface-dark border border-border-dark rounded-lg p-4">
+                    <pre className="whitespace-pre-wrap text-sm text-slate-300 font-mono">{run.plan_md}</pre>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Execution Summary (collapsible) */}
+            {run.exec_md && (
+              <div className="mb-6">
+                <button
+                  onClick={() => setExecSummaryExpanded(!execSummaryExpanded)}
+                  className="flex items-center gap-2 w-full text-left mb-2 group"
+                >
+                  <span className="material-symbols-outlined text-slate-400 text-[18px] transition-transform group-hover:text-white" style={{ transform: execSummaryExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>expand_more</span>
+                  <h3 className="text-sm font-bold text-white uppercase">Execution Summary</h3>
+                </button>
+                {execSummaryExpanded && (
+                  <div className="bg-surface-dark border border-border-dark rounded-lg p-4">
+                    <pre className="whitespace-pre-wrap text-sm text-slate-300 font-mono">{run.exec_md}</pre>
+                  </div>
+                )}
               </div>
             )}
 

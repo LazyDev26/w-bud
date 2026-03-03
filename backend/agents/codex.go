@@ -31,9 +31,9 @@ func (a *CodexAgent) Plan(ctx context.Context, prompt string, workDir string, lo
 	return lastMessage, tokens, err
 }
 
-func (a *CodexAgent) Execute(ctx context.Context, prompt string, workDir string, logWriter io.Writer) (*TokenUsage, error) {
-	_, _, tokens, err := a.run(ctx, prompt, workDir, logWriter, false)
-	return tokens, err
+func (a *CodexAgent) Execute(ctx context.Context, prompt string, workDir string, logWriter io.Writer) (string, *TokenUsage, error) {
+	lastMessage, _, tokens, err := a.run(ctx, prompt, workDir, logWriter, false)
+	return lastMessage, tokens, err
 }
 
 func (a *CodexAgent) run(ctx context.Context, prompt string, workDir string, logWriter io.Writer, captureOutput bool) (string, string, *TokenUsage, error) {

@@ -13,6 +13,7 @@ type Run struct {
 	Repos               []string          `json:"repos"`
 	Worktrees           map[string]string `json:"worktrees"`
 	PlanMD              string            `json:"plan_md"`
+	ExecMD              string            `json:"exec_md"`
 	Context             string            `json:"context"`
 	Constraints         string            `json:"constraints"`
 	VerificationContext string            `json:"verification_context"`

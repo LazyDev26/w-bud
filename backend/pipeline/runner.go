@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/w-bud/backend/agents"
@@ -103,7 +104,7 @@ func (r *Runner) RunPlanning(runID string) {
 	prompt := BuildPlanningPrompt(stories, *run, repos, cfg.GlobalPrompts)
 
 	// Save prompt to log for debugging
-	promptFile := filepath.Join(logDir, runID+"-prompt.md")
+	promptFile := filepath.Join(logDir, "prompt.md")
 	os.WriteFile(promptFile, []byte(prompt), 0644)
 	broker.LogPublish(r.LogBroker, runID, planLogFile, fmt.Sprintf("[w-bud] Prompt saved to %s", promptFile))
 
@@ -256,6 +257,13 @@ func (r *Runner) RunExecution(runID string) {
 	// The agent runs in a single session with access to all repos, enabling
 	// cross-repo awareness and self-correction.
 	prompt := BuildExecutionPrompt(stories, *run, repos, cfg.GlobalPrompts)
+
+	// Save execution prompt to log folder for debugging
+	execLogDir := filepath.Dir(absLogPath)
+	execPromptFile := filepath.Join(execLogDir, "exec-prompt.md")
+	os.WriteFile(execPromptFile, []byte(prompt), 0644)
+	broker.LogPublish(r.LogBroker, runID, execLogFile, fmt.Sprintf("[w-bud] Execution prompt saved to %s", execPromptFile))
+
 	// Use the common parent of all worktrees as the working directory so the
 	// agent's sandbox (e.g. Codex --full-auto) covers all repo worktrees.
 	// Worktrees live at <workspacesRoot>/<runID>/<repoName>, so the parent is
@@ -269,8 +277,10 @@ func (r *Runner) RunExecution(runID string) {
 	broker.LogPublish(r.LogBroker, runID, execLogFile, fmt.Sprintf("[w-bud] Running %s agent for execution...", agent.Name()))
 	var execErr error
 	var totalExecTokens agents.TokenUsage
-	execTokens, execE := agent.Execute(ctx, prompt, primaryDir, logWriter)
+	var execOutput string
+	execOut, execTokens, execE := agent.Execute(ctx, prompt, primaryDir, logWriter)
 	execErr = execE
+	execOutput = execOut
 	brokerWriter.Flush()
 	if execTokens != nil {
 		totalExecTokens = *execTokens
@@ -295,11 +305,32 @@ func (r *Runner) RunExecution(runID string) {
 		log.Printf("[%s] Execution agent error: %v", runID, execErr)
 		run.Status = "failed"
 		run.Error = execErr.Error()
+		// Store partial output even on failure for debugging
+		if execOutput != "" {
+			run.ExecMD = execOutput
+		}
 		notifier.NotifyExecutionFailed(runID, run.StoryID, execErr.Error())
 	} else {
 		run.Status = "done"
+		run.ExecMD = execOutput
 		// Collect changed files from worktrees via git diff
 		run.ChangedFiles = git.CollectChangedFiles(run.Worktrees)
+
+		// Commit and push changes
+		if len(run.ChangedFiles) > 0 {
+			commitMsg := buildCommitMessage(run.StoryIDs, run.StoryID, run.StorySummary)
+			broker.LogPublish(r.LogBroker, runID, execLogFile, fmt.Sprintf("[w-bud] Committing and pushing changes: %s", commitMsg))
+			pushResults := git.CommitAndPush(run.Worktrees, run.BranchName, commitMsg)
+			for repo, pushErr := range pushResults {
+				if pushErr != nil {
+					broker.LogPublish(r.LogBroker, runID, execLogFile, fmt.Sprintf("[w-bud] Push failed for %s: %v", repo, pushErr))
+					log.Printf("[%s] Push failed for %s: %v", runID, repo, pushErr)
+				} else {
+					broker.LogPublish(r.LogBroker, runID, execLogFile, fmt.Sprintf("[w-bud] Pushed %s → origin/%s", repo, run.BranchName))
+				}
+			}
+		}
+
 		notifier.NotifyExecutionDone(runID, run.StoryID, len(run.ChangedFiles), dur)
 	}
 
@@ -337,6 +368,18 @@ func (r *Runner) failRun(runID string, errMsg string) {
 		run.DurationSeconds = &dur
 	}
 	r.Store.UpdateRun(*run)
+}
+
+// buildCommitMessage creates a commit message from story IDs and summary.
+// Format: "feat(STORY-123): Summary of the story\n\nAutomated by w-bud"
+func buildCommitMessage(storyIDs []string, fallbackID string, summary string) string {
+	ids := storyIDs
+	if len(ids) == 0 {
+		ids = []string{fallbackID}
+	}
+	idStr := strings.Join(ids, ", ")
+	msg := fmt.Sprintf("feat(%s): %s\n\nAutomated by w-bud", idStr, summary)
+	return msg
 }
 
 // ResolveStories looks up Story objects by their IDs from the full stories list.

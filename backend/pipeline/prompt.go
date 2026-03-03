@@ -169,7 +169,20 @@ func BuildExecutionPrompt(stories []models.Story, run models.Run, repos []models
 		b.WriteString("\n")
 	}
 
-	b.WriteString("## Instructions\nImplement all changes described in the plan above. Follow existing code patterns and conventions.\n")
+	b.WriteString(`## Instructions
+Implement all changes described in the plan above. Follow existing code patterns and conventions.
+
+## Output Requirements
+After completing all changes, output a structured execution summary in Markdown with these sections:
+
+1. **Changes Made** — List every file created or modified, with a one-line description of what was changed and why
+2. **Decisions & Assumptions** — Any tradeoffs, assumptions, or deviations from the plan
+3. **Verification** — Tests run, linting results, or manual checks performed
+4. **Risks & Caveats** — Anything you're uncertain about or that may need human review
+5. **Next Steps** — Remaining work, follow-up tasks, or manual steps the developer should take
+
+Output ONLY the summary in clean Markdown at the very end. Do not include any preamble or commentary before the summary.
+`)
 
 	return b.String()
 }

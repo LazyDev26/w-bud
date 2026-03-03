@@ -23,9 +23,9 @@ func (a *CopilotAgent) Plan(ctx context.Context, prompt string, workDir string, 
 	return output, nil, err
 }
 
-func (a *CopilotAgent) Execute(ctx context.Context, prompt string, workDir string, logWriter io.Writer) (*TokenUsage, error) {
-	_, err := a.run(ctx, prompt, workDir, logWriter)
-	return nil, err
+func (a *CopilotAgent) Execute(ctx context.Context, prompt string, workDir string, logWriter io.Writer) (string, *TokenUsage, error) {
+	out, err := a.run(ctx, prompt, workDir, logWriter)
+	return out, nil, err
 }
 
 func (a *CopilotAgent) run(ctx context.Context, prompt string, workDir string, logWriter io.Writer) (string, error) {

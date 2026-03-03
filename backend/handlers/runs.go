@@ -76,8 +76,9 @@ func (h *RunHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	now := time.Now()
+	runID := fmt.Sprintf("run-%s", uuid.New().String()[:8])
 	run := models.Run{
-		RunID:               fmt.Sprintf("run-%s", uuid.New().String()[:8]),
+		RunID:               runID,
 		StoryID:             storyIDs[0],
 		StorySummary:        strings.Join(summaries, " | "),
 		StoryIDs:            storyIDs,
@@ -92,7 +93,7 @@ func (h *RunHandler) Create(w http.ResponseWriter, r *http.Request) {
 		VerificationContext: req.VerificationContext,
 		StartedAt:           &now,
 		ChangedFiles:        []string{},
-		LogPath:             fmt.Sprintf("logs/run-%s.log", uuid.New().String()[:8]),
+		LogPath:             fmt.Sprintf("logs/%s/run.log", runID),
 	}
 
 	if err := h.Store.AddRun(run); err != nil {
@@ -221,9 +222,14 @@ func (h *RunHandler) Diff(w http.ResponseWriter, r *http.Request) {
 		if !ok {
 			continue
 		}
-		out, gitErr := exec.Command("git", "-C", wtPath, "diff", "HEAD", "--", filePath).Output()
-		if gitErr != nil {
-			// Try staged diff
+		// After auto-push, changes are committed so "git diff HEAD" returns nothing.
+		// Strategy: try committed diff (HEAD~1..HEAD) first, then uncommitted diffs.
+		var out []byte
+		out, _ = exec.Command("git", "-C", wtPath, "diff", "HEAD~1", "HEAD", "--", filePath).Output()
+		if len(out) == 0 {
+			out, _ = exec.Command("git", "-C", wtPath, "diff", "HEAD", "--", filePath).Output()
+		}
+		if len(out) == 0 {
 			out, _ = exec.Command("git", "-C", wtPath, "diff", "--cached", "HEAD", "--", filePath).Output()
 		}
 		diffs = append(diffs, FileDiff{

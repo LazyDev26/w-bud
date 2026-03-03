@@ -19,8 +19,9 @@ type Agent interface {
 	Plan(ctx context.Context, prompt string, workDir string, logWriter io.Writer) (string, *TokenUsage, error)
 
 	// Execute runs the agent in execution mode: applies changes per the plan.
+	// Returns the agent's final output (used as execution summary), token usage, and error.
 	// Output is streamed line-by-line to logWriter.
-	Execute(ctx context.Context, prompt string, workDir string, logWriter io.Writer) (*TokenUsage, error)
+	Execute(ctx context.Context, prompt string, workDir string, logWriter io.Writer) (string, *TokenUsage, error)
 
 	// Name returns the agent identifier (e.g. "cursor", "codex").
 	Name() string

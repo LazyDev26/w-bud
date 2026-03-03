@@ -11,6 +11,8 @@ export default function RunHistory() {
   const [filter, setFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedRun, setSelectedRun] = useState<Run | null>(null);
+  const [planExpanded, setPlanExpanded] = useState(false);
+  const [execSummaryExpanded, setExecSummaryExpanded] = useState(false);
 
   useEffect(() => {
     loadRuns();
@@ -111,7 +113,7 @@ export default function RunHistory() {
                     <tr
                       key={run.run_id}
                       className="group hover:bg-surface-hover transition-colors cursor-pointer"
-                      onClick={() => setSelectedRun(run)}
+                      onClick={() => { setSelectedRun(run); setPlanExpanded(false); setExecSummaryExpanded(false); }}
                     >
                       <td className="px-6 py-3 font-mono text-primary group-hover:underline decoration-primary underline-offset-4">
                         {(run.story_ids || [run.story_id]).join(', ')}
@@ -186,13 +188,39 @@ export default function RunHistory() {
 
             {/* Drawer Content */}
             <div className="flex-1 overflow-y-auto p-6">
-              {/* Plan */}
+              {/* Plan (collapsible) */}
               {selectedRun.plan_md && (
                 <div className="mb-6">
-                  <h4 className="text-sm font-bold text-white uppercase mb-3">Execution Plan</h4>
-                  <div className="bg-[#0a0f16] rounded-lg p-4 border border-border-dark">
-                    <pre className="whitespace-pre-wrap text-sm text-slate-300 font-mono">{selectedRun.plan_md}</pre>
-                  </div>
+                  <button
+                    onClick={() => setPlanExpanded(!planExpanded)}
+                    className="flex items-center gap-2 w-full text-left mb-2 group"
+                  >
+                    <span className="material-symbols-outlined text-slate-400 text-[18px] transition-transform group-hover:text-white" style={{ transform: planExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>expand_more</span>
+                    <h4 className="text-sm font-bold text-white uppercase">Execution Plan</h4>
+                  </button>
+                  {planExpanded && (
+                    <div className="bg-[#0a0f16] rounded-lg p-4 border border-border-dark">
+                      <pre className="whitespace-pre-wrap text-sm text-slate-300 font-mono">{selectedRun.plan_md}</pre>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Execution Summary (collapsible) */}
+              {selectedRun.exec_md && (
+                <div className="mb-6">
+                  <button
+                    onClick={() => setExecSummaryExpanded(!execSummaryExpanded)}
+                    className="flex items-center gap-2 w-full text-left mb-2 group"
+                  >
+                    <span className="material-symbols-outlined text-slate-400 text-[18px] transition-transform group-hover:text-white" style={{ transform: execSummaryExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>expand_more</span>
+                    <h4 className="text-sm font-bold text-white uppercase">Execution Summary</h4>
+                  </button>
+                  {execSummaryExpanded && (
+                    <div className="bg-[#0a0f16] rounded-lg p-4 border border-border-dark">
+                      <pre className="whitespace-pre-wrap text-sm text-slate-300 font-mono">{selectedRun.exec_md}</pre>
+                    </div>
+                  )}
                 </div>
               )}
 

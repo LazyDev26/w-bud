@@ -87,6 +87,41 @@ func (wm *WorktreeManager) CleanupWorktrees(runID string, branchName string, rep
 	os.RemoveAll(runDir)
 }
 
+// CommitAndPush stages all changes, commits with the given message, and pushes
+// the branch to origin for each worktree. Returns a map of repoName -> error (nil if success).
+func CommitAndPush(worktrees map[string]string, branchName string, commitMsg string) map[string]error {
+	results := make(map[string]error)
+	for repo, wtPath := range worktrees {
+		// Stage all changes (including new files)
+		if out, err := exec.Command("git", "-C", wtPath, "add", "-A").CombinedOutput(); err != nil {
+			results[repo] = fmt.Errorf("git add failed: %s — %w", string(out), err)
+			continue
+		}
+
+		// Check if there's anything to commit
+		statusOut, _ := exec.Command("git", "-C", wtPath, "status", "--porcelain").Output()
+		if strings.TrimSpace(string(statusOut)) == "" {
+			results[repo] = nil // nothing to commit
+			continue
+		}
+
+		// Commit
+		if out, err := exec.Command("git", "-C", wtPath, "commit", "-m", commitMsg).CombinedOutput(); err != nil {
+			results[repo] = fmt.Errorf("git commit failed: %s — %w", string(out), err)
+			continue
+		}
+
+		// Push
+		if out, err := exec.Command("git", "-C", wtPath, "push", "origin", branchName).CombinedOutput(); err != nil {
+			results[repo] = fmt.Errorf("git push failed: %s — %w", string(out), err)
+			continue
+		}
+
+		results[repo] = nil
+	}
+	return results
+}
+
 // CollectChangedFiles uses git diff in each worktree to find modified files.
 func CollectChangedFiles(worktrees map[string]string) []string {
 	var files []string

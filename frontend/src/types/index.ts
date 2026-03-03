@@ -43,6 +43,7 @@ export interface Run {
   repos: string[];
   worktrees: Record<string, string>;
   plan_md: string;
+  exec_md: string;
   context: string;
   constraints: string;
   verification_context: string;

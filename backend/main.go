@@ -59,6 +59,9 @@ func main() {
 		r.Post("/runs/{runID}/approve", runH.Approve)
 		r.Post("/runs/{runID}/abort", runH.Abort)
 		r.Get("/runs/{runID}/diff", runH.Diff)
+		r.Post("/runs/{runID}/push", runH.Push)
+		r.Post("/runs/{runID}/retry", runH.Retry)
+		r.Post("/runs/{runID}/cleanup", runH.Cleanup)
 		r.Post("/runs/preview-prompt", runH.PreviewPrompt)
 
 		// Repos

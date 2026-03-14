@@ -19,6 +19,7 @@ type AgentsConfig struct {
 	PlanningAgent   string `json:"planning_agent"`
 	ExecutionAgent  string `json:"execution_agent"`
 	AutoApprovePlan bool   `json:"auto_approve_plan"`
+	AutoPush        bool   `json:"auto_push"`
 }
 
 type JIRAConfig struct {

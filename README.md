@@ -92,6 +92,7 @@ Open [http://localhost:3000](http://localhost:3000) — a welcome checklist will
 1. **JIRA** — Base URL, email, API token, board ID
 2. **Workspace root** — A directory on your machine where w-bud creates git worktrees for each run (e.g., `~/workspaces`). This is **not** where your original repos live — it's a separate scratch area. Each run gets its own isolated worktree inside this directory so your actual repositories are never modified directly.
 3. **Agents** — Select planning and execution agents (the UI checks CLI availability in real time)
+4. **Auto-Push** — Toggle whether changes are automatically committed and pushed after execution (off by default)
 
 Optional (can be configured later):
 - **Global Prompts** — Reusable instructions injected into agent prompts, tagged per phase
@@ -122,7 +123,7 @@ You can find your custom field IDs in JIRA under **Settings → Issues → Custo
 ```
 w-bud/
 ├── data/                        # Runtime data (gitignored, created by setup.sh)
-│   ├── logs/                    # Run log files and prompt dumps
+│   ├── logs/<runID>/            # Per-run logs, prompts, and exec prompts
 │   ├── config.json              # App configuration
 │   ├── repos.json               # Registered repositories
 │   ├── stories.json             # Cached sprint stories
@@ -219,7 +220,9 @@ w-bud never modifies your original repositories directly. Here's how it works:
 3. **Feature branch** — Each run gets its own branch (e.g., `wbud/STORY-123`). The agent works exclusively in the worktree. You can inspect, merge, or delete the branch after the run.
 4. **Multi-repo runs** — If a story spans multiple services or packages, select all relevant repos when creating the run. The agent receives context about all repos and their worktree paths, and executes against each one.
 
-After a run completes, you review the diff in the UI. If you're happy, merge the feature branch into your main branch using your normal git workflow. If not, discard it — nothing in your original repo was touched.
+After a run completes, you review the diff in the UI. If **auto-push** is enabled in settings, the changes are already committed and pushed to the feature branch. Otherwise, use the **Push** button in the Execution Monitor to commit and push when you're satisfied. Either way, merge the feature branch into your main branch using your normal git workflow, or discard it — nothing in your original repo was touched.
+
+Once you're done with a run, use the **Cleanup** button to remove the worktrees and free disk space.
 
 ### Repository Prompts
 
@@ -239,20 +242,25 @@ When a run includes repos that have prompts, a **"Repository-Specific Instructio
 
 ```
 [Create Run] → planning → awaiting_approval → executing → done
-                  │              │                           │
-                  │         (auto-approve)                   │
-                  │              ↓                           │
-                  │          executing ──────────────────→ done / failed
+                  │              │                  │         │
+                  │         (auto-approve)          │    (auto-push)
+                  │              ↓                  │         ↓
+                  │          executing ─────→ done / failed  pushed
+                  │                            │
+                  │                       [retry] → executing
                   │
                   └─→ failed (agent error)
 
                   At any active stage → aborted (user abort)
+                  done/failed/aborted → [cleanup] → worktrees removed
 ```
 
 1. **Planning** — Git worktrees are created per repo on a feature branch. The planning agent receives a structured prompt and returns a markdown plan. Logs are streamed back to the UI in real time via a WebSocket pub/sub broker (`broker/broker.go`), so you can watch agent output as it happens.
 2. **Approval** — The plan is displayed for review. Edit, approve, or reject. Auto-approve can be enabled in settings.
-3. **Execution** — The execution agent implements changes in the worktree. Logs continue streaming over the same WebSocket connection. Late subscribers (e.g., navigating back to the page) automatically receive the full history.
-4. **Completion** — Changed files are detected via `git diff`, duration is recorded, and the run is marked done.
+3. **Execution** — The execution agent implements changes in the worktree. Logs continue streaming over the same WebSocket connection. Late subscribers (e.g., navigating back to the page) automatically receive the full history. At the end, the agent produces a structured **Execution Summary** (ExecMD) with changes made, decisions, verification, risks, and next steps.
+4. **Completion** — Changed files are detected via `git diff`, duration is recorded, and the run is marked done. If **auto-push** is enabled, changes are committed and pushed to the feature branch automatically. Otherwise, use the **Push** button in the UI to commit and push when ready.
+5. **Retry** — Failed or completed runs can be retried, re-running execution with the same plan and worktrees.
+6. **Cleanup** — Worktrees for completed/failed/aborted runs can be cleaned up to free disk space.
 
 Repos are locked per-run to prevent concurrent modifications. Stale locks from crashed runs are cleaned up on backend startup.
 
@@ -305,6 +313,9 @@ Since w-bud delegates to CLI agents, any skills installed globally for that agen
 | `POST` | `/api/runs/{runID}/approve` | Approve plan, start execution |
 | `POST` | `/api/runs/{runID}/abort` | Abort a run |
 | `GET` | `/api/runs/{runID}/diff` | Git diff for changed files |
+| `POST` | `/api/runs/{runID}/push` | Manually commit & push changes |
+| `POST` | `/api/runs/{runID}/retry` | Retry execution for a failed/done run |
+| `POST` | `/api/runs/{runID}/cleanup` | Remove worktrees to free disk space |
 | `POST` | `/api/runs/preview-prompt` | Preview the planning prompt |
 
 ### Repos
@@ -379,7 +390,7 @@ Contributions are welcome. Some areas that could use help:
 - Persistent storage backend (SQLite, etc.)
 - Support for configuring models and reasoning effort of the CLI agents
 - Try enabling the w-bud with cloud agents(`codex cloud`, `agent --cloud`, `copilot -p "/delegate"`) to make w-bud accessible to from anywhere
-- Enabling support for PR creation with the worktree created
+- Auto-create pull requests after push (GitHub/GitLab API integration)
 - Update comments for JIRA stories
 - Creation of sub-agents through CLI Agents and use them accordingly
 

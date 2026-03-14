@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/w-bud/backend/git"
 	"github.com/w-bud/backend/models"
 	"github.com/w-bud/backend/notify"
 	"github.com/w-bud/backend/pipeline"
@@ -307,5 +308,137 @@ func (h *RunHandler) GetLogs(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]interface{}{
 		"run_id": runID,
 		"lines":  lines,
+	})
+}
+
+// Push manually commits and pushes changes for a completed run.
+func (h *RunHandler) Push(w http.ResponseWriter, r *http.Request) {
+	runID := chi.URLParam(r, "runID")
+	run, err := h.Store.GetRun(runID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if run == nil {
+		http.Error(w, "Run not found", http.StatusNotFound)
+		return
+	}
+	if run.Status != "done" {
+		http.Error(w, "Run is not in done state", http.StatusBadRequest)
+		return
+	}
+	if len(run.Worktrees) == 0 {
+		http.Error(w, "No worktrees available for this run", http.StatusBadRequest)
+		return
+	}
+
+	commitMsg := fmt.Sprintf("feat(%s): %s\n\nAutomated by w-bud",
+		strings.Join(append(run.StoryIDs[:0:0], run.StoryIDs...), ", "),
+		run.StorySummary)
+	if len(run.StoryIDs) == 0 {
+		commitMsg = fmt.Sprintf("feat(%s): %s\n\nAutomated by w-bud", run.StoryID, run.StorySummary)
+	}
+
+	results := git.CommitAndPush(run.Worktrees, run.BranchName, commitMsg)
+
+	type PushResult struct {
+		Repo    string `json:"repo"`
+		Success bool   `json:"success"`
+		Error   string `json:"error,omitempty"`
+	}
+	var pushResults []PushResult
+	allOk := true
+	for repo, pushErr := range results {
+		pr := PushResult{Repo: repo, Success: pushErr == nil}
+		if pushErr != nil {
+			pr.Error = pushErr.Error()
+			allOk = false
+		}
+		pushResults = append(pushResults, pr)
+	}
+
+	writeJSON(w, map[string]interface{}{
+		"run_id":  runID,
+		"success": allOk,
+		"results": pushResults,
+	})
+}
+
+// Retry re-runs execution for a failed run using the existing plan and worktrees.
+func (h *RunHandler) Retry(w http.ResponseWriter, r *http.Request) {
+	runID := chi.URLParam(r, "runID")
+	run, err := h.Store.GetRun(runID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if run == nil {
+		http.Error(w, "Run not found", http.StatusNotFound)
+		return
+	}
+	if run.Status != "failed" && run.Status != "done" {
+		http.Error(w, "Run must be in failed or done state to retry", http.StatusBadRequest)
+		return
+	}
+
+	// Reset execution state
+	run.Status = "executing"
+	run.Error = ""
+	run.ExecMD = ""
+	run.CompletedAt = nil
+	run.DurationSeconds = nil
+	run.ChangedFiles = []string{}
+	run.ExecTokensIn = 0
+	run.ExecTokensOut = 0
+	now := time.Now()
+	run.StartedAt = &now
+
+	if err := h.Store.UpdateRun(*run); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	go h.Pipeline.RunExecution(run.RunID)
+
+	writeJSON(w, run)
+}
+
+// Cleanup removes worktrees for a completed/failed/aborted run to free disk space.
+func (h *RunHandler) Cleanup(w http.ResponseWriter, r *http.Request) {
+	runID := chi.URLParam(r, "runID")
+	run, err := h.Store.GetRun(runID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if run == nil {
+		http.Error(w, "Run not found", http.StatusNotFound)
+		return
+	}
+	if run.Status == "planning" || run.Status == "executing" || run.Status == "awaiting_approval" {
+		http.Error(w, "Cannot cleanup an active run", http.StatusBadRequest)
+		return
+	}
+
+	cfg, err := h.Store.GetConfig()
+	if err != nil {
+		http.Error(w, "Failed to load config", http.StatusInternalServerError)
+		return
+	}
+
+	repos, _ := h.Store.GetRepos()
+	wtMgr := &git.WorktreeManager{WorkspacesRoot: cfg.WorkspacesRoot}
+	wtMgr.CleanupWorktrees(runID, run.BranchName, run.Repos, repos)
+
+	// Clear worktree paths from the run
+	run.Worktrees = map[string]string{}
+	if err := h.Store.UpdateRun(*run); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, map[string]interface{}{
+		"run_id":  runID,
+		"cleaned": true,
 	})
 }

@@ -316,8 +316,8 @@ func (r *Runner) RunExecution(runID string) {
 		// Collect changed files from worktrees via git diff
 		run.ChangedFiles = git.CollectChangedFiles(run.Worktrees)
 
-		// Commit and push changes
-		if len(run.ChangedFiles) > 0 {
+		// Commit and push changes (if auto_push is enabled)
+		if len(run.ChangedFiles) > 0 && cfg.Agents.AutoPush {
 			commitMsg := buildCommitMessage(run.StoryIDs, run.StoryID, run.StorySummary)
 			broker.LogPublish(r.LogBroker, runID, execLogFile, fmt.Sprintf("[w-bud] Committing and pushing changes: %s", commitMsg))
 			pushResults := git.CommitAndPush(run.Worktrees, run.BranchName, commitMsg)
@@ -329,6 +329,8 @@ func (r *Runner) RunExecution(runID string) {
 					broker.LogPublish(r.LogBroker, runID, execLogFile, fmt.Sprintf("[w-bud] Pushed %s → origin/%s", repo, run.BranchName))
 				}
 			}
+		} else if len(run.ChangedFiles) > 0 {
+			broker.LogPublish(r.LogBroker, runID, execLogFile, "[w-bud] Auto-push disabled. Use the Push button in the UI to commit and push changes.")
 		}
 
 		notifier.NotifyExecutionDone(runID, run.StoryID, len(run.ChangedFiles), dur)

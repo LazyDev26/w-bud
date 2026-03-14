@@ -24,6 +24,8 @@ export default function ExecutionMonitor() {
   const [loadingDiff, setLoadingDiff] = useState<string | null>(null);
   const [planExpanded, setPlanExpanded] = useState(false);
   const [execSummaryExpanded, setExecSummaryExpanded] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
   const LOG_TAIL = 50;
 
   useEffect(() => {
@@ -426,7 +428,83 @@ export default function ExecutionMonitor() {
               </div>
             )}
 
-            <div className="flex gap-3 justify-center mt-8">
+            {/* Action Buttons */}
+            <div className="flex flex-wrap gap-3 justify-center mt-8">
+              {/* Push — visible when run is done and has worktrees (not yet pushed) */}
+              {run.status === 'done' && Object.keys(run.worktrees || {}).length > 0 && (run.changed_files || []).length > 0 && (
+                <button
+                  onClick={async () => {
+                    if (!runId) return;
+                    setActionLoading('push');
+                    setActionMessage(null);
+                    try {
+                      const res = await api.pushRun(runId);
+                      setActionMessage(res.success ? 'Pushed successfully' : 'Push failed for some repos');
+                      loadRun();
+                    } catch (e: any) {
+                      setActionMessage(`Push error: ${e.message}`);
+                    } finally {
+                      setActionLoading(null);
+                    }
+                  }}
+                  disabled={actionLoading === 'push'}
+                  className="px-6 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 rounded-lg text-sm font-bold text-white transition-colors flex items-center gap-2"
+                >
+                  <span className="material-symbols-outlined text-[18px]">cloud_upload</span>
+                  {actionLoading === 'push' ? 'Pushing...' : 'Push Changes'}
+                </button>
+              )}
+
+              {/* Retry — visible when run is failed or done */}
+              {(run.status === 'failed' || run.status === 'done') && (
+                <button
+                  onClick={async () => {
+                    if (!runId) return;
+                    setActionLoading('retry');
+                    setActionMessage(null);
+                    try {
+                      await api.retryRun(runId);
+                      setActionMessage('Retrying execution...');
+                      loadRun();
+                    } catch (e: any) {
+                      setActionMessage(`Retry error: ${e.message}`);
+                    } finally {
+                      setActionLoading(null);
+                    }
+                  }}
+                  disabled={actionLoading === 'retry'}
+                  className="px-6 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 rounded-lg text-sm font-bold text-white transition-colors flex items-center gap-2"
+                >
+                  <span className="material-symbols-outlined text-[18px]">replay</span>
+                  {actionLoading === 'retry' ? 'Retrying...' : 'Retry Execution'}
+                </button>
+              )}
+
+              {/* Cleanup — visible when run is done/failed/aborted and has worktrees */}
+              {(run.status === 'done' || run.status === 'failed' || run.status === 'aborted') && Object.keys(run.worktrees || {}).length > 0 && (
+                <button
+                  onClick={async () => {
+                    if (!runId) return;
+                    setActionLoading('cleanup');
+                    setActionMessage(null);
+                    try {
+                      await api.cleanupRun(runId);
+                      setActionMessage('Worktrees cleaned up');
+                      loadRun();
+                    } catch (e: any) {
+                      setActionMessage(`Cleanup error: ${e.message}`);
+                    } finally {
+                      setActionLoading(null);
+                    }
+                  }}
+                  disabled={actionLoading === 'cleanup'}
+                  className="px-6 py-2 bg-red-600/80 hover:bg-red-700 disabled:opacity-50 rounded-lg text-sm font-bold text-white transition-colors flex items-center gap-2"
+                >
+                  <span className="material-symbols-outlined text-[18px]">delete_sweep</span>
+                  {actionLoading === 'cleanup' ? 'Cleaning...' : 'Cleanup Worktrees'}
+                </button>
+              )}
+
               <button
                 onClick={() => navigate('/')}
                 className="px-6 py-2 border border-border-dark rounded-lg text-sm font-bold text-slate-300 hover:bg-surface-hover transition-colors"
@@ -434,6 +512,11 @@ export default function ExecutionMonitor() {
                 Back to Sprint Board
               </button>
             </div>
+
+            {/* Action feedback message */}
+            {actionMessage && (
+              <p className="text-center text-sm text-slate-400 mt-3">{actionMessage}</p>
+            )}
           </div>
         )}
       </div>

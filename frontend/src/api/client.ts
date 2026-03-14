@@ -51,6 +51,14 @@ export const api = {
     request<{ run_id: string; diffs: { file: string; diff: string }[] }>(
       `/api/runs/${runId}/diff${file ? `?file=${encodeURIComponent(file)}` : ''}`
     ),
+  pushRun: (runId: string) =>
+    request<{ run_id: string; success: boolean; results: { repo: string; success: boolean; error?: string }[] }>(
+      `/api/runs/${runId}/push`, { method: 'POST' }
+    ),
+  retryRun: (runId: string) =>
+    request<import('../types').Run>(`/api/runs/${runId}/retry`, { method: 'POST' }),
+  cleanupRun: (runId: string) =>
+    request<{ run_id: string; cleaned: boolean }>(`/api/runs/${runId}/cleanup`, { method: 'POST' }),
 
   // Browse filesystem
   browse: (path?: string) =>

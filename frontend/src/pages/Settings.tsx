@@ -29,7 +29,7 @@ export default function Settings() {
       const cfg = await api.getConfig();
       // Ensure fields have defaults if missing from older config
       if (!cfg.agents) {
-        cfg.agents = { planning_agent: 'cursor', execution_agent: 'codex', auto_approve_plan: false };
+        cfg.agents = { planning_agent: 'cursor', execution_agent: 'codex', auto_approve_plan: false, auto_push: false };
       }
       if (!cfg.webex) {
         cfg.webex = { token: '', room_id: '' };
@@ -456,7 +456,7 @@ export default function Settings() {
             </div>
 
             {/* Auto-Approve Toggle */}
-            <div className="px-6 pb-6">
+            <div className="px-6 pb-3">
               <div className="flex items-center justify-between p-4 bg-bg-dark rounded-lg border border-border-dark">
                 <div>
                   <p className="text-sm font-medium text-white">Auto-Approve Plans</p>
@@ -470,6 +470,26 @@ export default function Settings() {
                 >
                   <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${
                     config.agents.auto_approve_plan ? 'left-[22px]' : 'left-0.5'
+                  }`} />
+                </button>
+              </div>
+            </div>
+
+            {/* Auto-Push Toggle */}
+            <div className="px-6 pb-6">
+              <div className="flex items-center justify-between p-4 bg-bg-dark rounded-lg border border-border-dark">
+                <div>
+                  <p className="text-sm font-medium text-white">Auto-Push After Execution</p>
+                  <p className="text-xs text-text-secondary mt-0.5">Automatically commit and push changes after successful execution</p>
+                </div>
+                <button
+                  onClick={() => setConfig({ ...config, agents: { ...config.agents, auto_push: !config.agents.auto_push } })}
+                  className={`shrink-0 w-11 h-6 rounded-full relative transition-colors cursor-pointer ${
+                    config.agents.auto_push ? 'bg-primary' : 'bg-slate-700'
+                  }`}
+                >
+                  <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${
+                    config.agents.auto_push ? 'left-[22px]' : 'left-0.5'
                   }`} />
                 </button>
               </div>

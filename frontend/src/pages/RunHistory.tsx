@@ -13,6 +13,8 @@ export default function RunHistory() {
   const [selectedRun, setSelectedRun] = useState<Run | null>(null);
   const [planExpanded, setPlanExpanded] = useState(false);
   const [execSummaryExpanded, setExecSummaryExpanded] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
 
   useEffect(() => {
     loadRuns();
@@ -113,7 +115,7 @@ export default function RunHistory() {
                     <tr
                       key={run.run_id}
                       className="group hover:bg-surface-hover transition-colors cursor-pointer"
-                      onClick={() => { setSelectedRun(run); setPlanExpanded(false); setExecSummaryExpanded(false); }}
+                      onClick={() => { setSelectedRun(run); setPlanExpanded(false); setExecSummaryExpanded(false); setActionLoading(null); setActionMessage(null); }}
                     >
                       <td className="px-6 py-3 font-mono text-primary group-hover:underline decoration-primary underline-offset-4">
                         {(run.story_ids || [run.story_id]).join(', ')}
@@ -263,17 +265,72 @@ export default function RunHistory() {
             </div>
 
             {/* Drawer Footer */}
-            <div className="p-4 border-t border-border-dark bg-surface-dark flex justify-between items-center">
-              <button className="text-sm text-primary hover:underline flex items-center gap-1">
-                <span className="material-symbols-outlined text-[18px]">download</span>
-                Download log
-              </button>
-              <button
-                onClick={() => { setSelectedRun(null); navigate(`/run/${selectedRun.run_id}`); }}
-                className="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors shadow-lg shadow-primary/20"
-              >
-                View Full Details
-              </button>
+            <div className="p-4 border-t border-border-dark bg-surface-dark space-y-3">
+              {actionMessage && (
+                <p className="text-xs text-slate-400 text-center">{actionMessage}</p>
+              )}
+              <div className="flex flex-wrap gap-2 justify-between items-center">
+                <div className="flex gap-2">
+                  {/* Retry */}
+                  {(selectedRun.status === 'failed' || selectedRun.status === 'done') && (
+                    <button
+                      onClick={async () => {
+                        setActionLoading('retry');
+                        setActionMessage(null);
+                        try {
+                          await api.retryRun(selectedRun.run_id);
+                          setActionMessage('Retrying execution...');
+                          loadRuns();
+                          setSelectedRun(null);
+                          navigate(`/run/${selectedRun.run_id}`);
+                        } catch (e: any) {
+                          setActionMessage(`Retry error: ${e.message}`);
+                        } finally {
+                          setActionLoading(null);
+                        }
+                      }}
+                      disabled={actionLoading === 'retry'}
+                      className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 rounded-lg text-xs font-bold text-white transition-colors flex items-center gap-1"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">replay</span>
+                      {actionLoading === 'retry' ? 'Retrying...' : 'Retry'}
+                    </button>
+                  )}
+                  {/* Cleanup */}
+                  {(selectedRun.status === 'done' || selectedRun.status === 'failed' || selectedRun.status === 'aborted') && Object.keys(selectedRun.worktrees || {}).length > 0 && (
+                    <button
+                      onClick={async () => {
+                        setActionLoading('cleanup');
+                        setActionMessage(null);
+                        try {
+                          await api.cleanupRun(selectedRun.run_id);
+                          setActionMessage('Worktrees cleaned up');
+                          loadRuns();
+                        } catch (e: any) {
+                          setActionMessage(`Cleanup error: ${e.message}`);
+                        } finally {
+                          setActionLoading(null);
+                        }
+                      }}
+                      disabled={actionLoading === 'cleanup'}
+                      className="px-3 py-1.5 bg-red-600/80 hover:bg-red-700 disabled:opacity-50 rounded-lg text-xs font-bold text-white transition-colors flex items-center gap-1"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">delete_sweep</span>
+                      {actionLoading === 'cleanup' ? 'Cleaning...' : 'Cleanup'}
+                    </button>
+                  )}
+                  <button className="text-xs text-primary hover:underline flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[16px]">download</span>
+                    Log
+                  </button>
+                </div>
+                <button
+                  onClick={() => { setSelectedRun(null); navigate(`/run/${selectedRun.run_id}`); }}
+                  className="px-4 py-2 text-sm font-medium text-white bg-primary hover:bg-primary-dark rounded-lg transition-colors shadow-lg shadow-primary/20"
+                >
+                  View Full Details
+                </button>
+              </div>
             </div>
           </aside>
         </>

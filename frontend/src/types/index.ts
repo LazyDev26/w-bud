@@ -86,6 +86,7 @@ export interface AgentsConfig {
   planning_agent: string;
   execution_agent: string;
   auto_approve_plan: boolean;
+  auto_push: boolean;
 }
 
 export interface GlobalPrompt {
